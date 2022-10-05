@@ -1,0 +1,32 @@
+{
+  "name": "Owo",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "type": "module",
+  "dependencies": {
+    "archiver": "^5.3.1",
+    "config": "^3.3.7",
+    "express": "^4.18.1",
+    "extract-zip": "^2.0.1",
+    "https": "^1.0.0",
+    "kafkajs": "^2.1.0",
+    "log4js": "^6.6.1",
+    "node-fetch": "^3.2.9"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/davideelliot94/Owo.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/davideelliot94/Owo/issues"
+  },
+  "homepage": "https://github.com/davideelliot94/Owo#readme"
+}

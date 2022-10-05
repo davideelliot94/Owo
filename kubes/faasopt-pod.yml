@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Pod
+metadata:
+   name: faasopt-pod
+spec:
+   containers:
+   - name: faasopt-container
+     image: davideelliot/faas-optimizer:<version>
+     ports:
+     - containerPort: 4000

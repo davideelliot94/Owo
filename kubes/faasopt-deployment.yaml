@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: faasopt-deployment
+  labels:
+    app: faas-optimizer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: faas-optimizer
+  template:
+    metadata:
+      labels:
+        app: faas-optimizer
+    spec:
+      containers:
+      - name: faas-optimizer
+        image: davideelliot/faas-optimizer:0.2
+        volumeMounts:
+        - mountPath: /faas-optimizer/cli
+          name: cli
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        env:
+        - name: API_HOST
+          value: "owdev-nginx.openwhisk.svc.cluster.local"
+        - name: METRICS_ENDPOINT
+          value: "owdev-prometheus-server.openwhisk.svc.cluster.local:9090/api/v1/query?"
+        ports:
+        - containerPort: 4000
+      volumes:
+      - name: cli
+        hostPath:
+          path: /home/master/faas-optimizer/cli
