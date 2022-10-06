@@ -1,7 +1,6 @@
 import express from 'express';
 import * as utils from "./utils/utils.js";
 import * as fg from "./openwhisk/action_gestures.js";
-import * as zipgest from "./utils/zip_gestures.cjs";
 import * as logger from "./log/logger.cjs";
 import * as kafka from "./kafka/Kafka.cjs";
 
