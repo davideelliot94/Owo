@@ -1,25 +1,25 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: faasopt-deployment
+  name: {{ include "chart.name" . | nindent 4 }}
   labels:
-    app: faas-optimizer
+    app: {{ include "chart.name" . | nindent 4}}
 spec:
-  replicas: 1
+  replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: faas-optimizer
+      app: {{ include "chart.name" . | nindent 6}}
   template:
     metadata:
       labels:
-        app: faas-optimizer
+        app: {{ include "chart.name" . | nindent 8 }}
     spec:
       containers:
-      - name: faas-optimizer
-        image: davideelliot/faas-optimizer:0.2
+      - name: {{ .Values.image.name }}
+        image: {{ .Values.image.repository }}
         volumeMounts:
-        - mountPath: /faas-optimizer/cli
-          name: cli
+        - mountPath: {{ .Values.image.volumeMountPath }}
+          name: {{ .Values.image.volumeName }}
         resources:
           requests:
             memory: "64Mi"

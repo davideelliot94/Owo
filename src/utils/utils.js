@@ -25,14 +25,11 @@ async function merge(functions_to_merge,seq_name,whole){
 
         for (let index = 1; index < functions_to_merge.length; index++) {
 
-            //COUNTER PER DETERMINARE SE TUTTE LE ACTION HANNO LO STESSO LINGUAGGIO
-
-            
+            //COUNTER PER DETERMINARE SE TUTTE LE ACTION HANNO LO STESSO LINGUAGGIO     
             if (functions_to_merge[index].kind.split(":")[0] === prevKind.split(":")[0]) {
                 sameLangCounter++;
             }
             //COUNTER PER DETERMINARE SE E QUANTE FUNZIONI BINARIE CI SONO
-            
             if (functions_to_merge[index].binary) {
                 binary_count++;
             }
@@ -62,7 +59,6 @@ async function merge(functions_to_merge,seq_name,whole){
                         }
                     })
                 })
-
             } else {
                 // solo plain text
                 mergePlainTextFuncs(funcs, function (wrappedFunc) {
@@ -326,7 +322,6 @@ function mergeFuncsDiffLangPlainTextBinary(funcs,seqName,binaries_timestamp,call
      */
 
     logger.log("Merging actions","info");
-    const timestamp = Date.now();
 
     var imports = "";
     var dependecies = {}
@@ -605,17 +600,18 @@ function mergeDiffLangActions(funcs,seqName,binaries_timestamp,callback){
             }
             if(k.includes("go")){
                 build_args_kinds = build_args_kinds.concat(" --build-arg GO=true")
-                img_tag = img_tag.concat("g")
+                img_tag = img_tag.concat("go")
             }
             if(k.includes("ballerina")){
                 build_args_kinds = build_args_kinds.concat(" --build-arg BALLERINA=true")
                 img_tag = img_tag.concat("bll")
             }
-            //manca java
+            if(k.includes("java")){
+                build_args_kinds = build_args_kinds.concat(" --build-arg JAVA=true")
+                img_tag = img_tag.concat("java")
+            }
         }
     });
-
-    const timestamp = Date.now();
 
     var imports = "";
     var dependecies = {}
@@ -777,7 +773,7 @@ function mergeDiffLangActions(funcs,seqName,binaries_timestamp,callback){
     fs.writeFileSync(binaries+ binaries_timestamp + '/index.js', buff,{encoding: "utf8"});
     const full_docker_img = conf.DOCKER_BASE_IMG+":"+img_tag
 
-    var docker_img = child_process.execSync("docker build . -t "+full_docker_img+" -f "+path.join(__dirname,"../../dockers/custom_runtime/Dockerfile")).toString();
+    child_process.execSync("docker build . -t "+full_docker_img+" -f "+path.join(__dirname,"../../dockers/custom_runtime/Dockerfile")).toString();
 
     callback(binaries_timestamp,full_docker_img);
 }
@@ -823,7 +819,6 @@ function copyAllFilesNew(extracted,binaries,main_name){
     var lsFiles = child_process.execSync("ls -p "+fullPath_extracted +" | grep -v / ").toString();
     var lsSplitFiles = lsFiles.split("\n");
     var file_list = []    
-    const timestamp = Date.now()
     lsSplitFiles.forEach(file =>{
         if(!file.includes(main_name) && file.length > 1){
             const tmp = file.split(".")
@@ -854,7 +849,6 @@ function copyAllFiles(extracted,binaries,main_name){
 
     var lsFiles = child_process.execSync("ls -p "+fullPath_extracted +" | grep -v / ").toString();
     var lsSplitFiles = lsFiles.split("\n");
-    const timestamp = Date.now()
     lsSplitFiles.forEach(file =>{
         if(!file.includes(main_name) && file.length > 1){
             child_process.execSync("cp -r "+fullPath_extracted+"/"+file + " " +fullPath_binaries+"/"+file+"-"+timestamp);       
@@ -1047,16 +1041,11 @@ function checkPartialMerges(functions_array){
     return parsed_func_array;
 }
 
-function checkPartialMergesNew(functions_array,configuration){
+function checkPartialMergesNoRepeat(functions_array,configuration){
 
     let index = 0;
     var  new_configuration = [];
     var sub_sequence = [];
-
-    console.log("configuration")
-    console.log(configuration)
-    console.log("functions_array")
-    console.log(functions_array)
 
     while(index < configuration.length) {
 
@@ -1068,6 +1057,7 @@ function checkPartialMergesNew(functions_array,configuration){
                 fi = functions_array[i];
                 break;
             }
+            i++
         }
 
         
@@ -1087,8 +1077,7 @@ function checkPartialMergesNew(functions_array,configuration){
         }
         index++;
     }
-    console.log("new_configuration")
-    console.log(new_configuration)
+
     return  new_configuration;
 }
 
@@ -1105,6 +1094,6 @@ export {
         copyAllFiles,
         checkPartialMerges,
         applyMergePoliciesNew,
-        checkPartialMergesNew
+        checkPartialMergesNoRepeat
     };
 

@@ -1,4 +1,4 @@
-const { Kafka } = require('kafkajs')
+const { Kafka, Partitioners } = require('kafkajs')
 const conf =  require("../../config/conf.cjs");
 const logger = require("../log/logger.cjs")
 
@@ -21,8 +21,8 @@ const kafka = new Kafka({
   sasl
 })
 
-const producer = kafka.producer();
 const admin = kafka.admin();
+const producer = kafka.producer({createPartitioner: Partitioners.LegacyPartitioner});
 const consumer = kafka.consumer({ groupId: "default" });
 
 /**
@@ -34,10 +34,15 @@ const consumer = kafka.consumer({ groupId: "default" });
     try {
         await admin.connect()
         //ottenere lista topics
-        await admin.createTopics({
-            topics: [ { topic:topicS} , {topic: topicC} ],
-            waitForLeaders: true,
-        })
+        const list = admin.listTopics();
+        const listResolved = await Promise.resolve(list)
+        if(!listResolved.includes(topicC) && !listResolved.includes(topicS) ){
+            await admin.createTopics({
+                topics: [ { topic:topicS} , {topic: topicC} ],
+                waitForLeaders: true,
+            })
+        }
+        
         await producer.connect()
         await consumer.connect()
 
@@ -46,14 +51,14 @@ const consumer = kafka.consumer({ groupId: "default" });
             fromBeginning: true
         })
     } catch (error) {
-        console.error(error)
+        logger.log(error,"error")
         process.exit(1)
     }
 }
 
 /**
  * 
- * @param {Message to send to kafka broker} message 
+ * @param {JSON object} message Message to send to kafka broker
  * @returns Nothing
  */
 
@@ -124,7 +129,7 @@ function buildMessage(pre,post,period,limit,preMetrics,only_seq){
                     "name":"test", // name of the configuration
                     "seq":{
                         "name":"seq",
-                        "arrivalRate":post == null ? condActionArrivalRate*10:0.0,
+                        "arrivalRate":post == null ? condActionArrivalRate:0.0,
                         //"arrivalRate":condActionArrivalRate*10,
                         //"arrivalRate":0.5,
                         "avgDuration":condActionDuration != null && condActionDuration != undefined  &&  condActionDuration > 0 ? condActionDuration:0,
@@ -136,7 +141,7 @@ function buildMessage(pre,post,period,limit,preMetrics,only_seq){
                     "condActionDuration":condActionDuration != null && condActionDuration != undefined  &&  condActionDuration > 0 ? condActionDuration:0, //int seqDuration+ seqWaitTime/seqLen
                     "avgColdStartRate":avgColdStartRate ,// double
                     "avgColdStartDuration":avgColdStartDuration,//double
-                    "stopTime":360, // int
+                    "stopTime":300, // int
                     "cpus":4,//int
                     "mem":4096, // int
                     "num":1, //Int
@@ -150,7 +155,7 @@ function buildMessage(pre,post,period,limit,preMetrics,only_seq){
 
         preFunctions.push({
             "name":funcs.function.name,
-            "arrivalRate":only_seq ? 0.0 : post == null ? funcs.metrics.arrivalRate*10: (funcs.metrics.arrivalRate - condActionArrivalRate)*10,
+            "arrivalRate":only_seq ? 0.0 : post == null ? funcs.metrics.arrivalRate: (funcs.metrics.arrivalRate - condActionArrivalRate),
             //"arrivalRate":funcs.metrics.arrivalRate*10,
             //"arrivalRate":0.5,
             "avgDuration":funcs.metrics.duration/1000,
@@ -159,8 +164,9 @@ function buildMessage(pre,post,period,limit,preMetrics,only_seq){
         avgColdStartRate += funcs.metrics.coldStartsRate
         avgColdStartDuration += funcs.metrics.coldStartDuration /1000
         //avgColdStartDuration += funcs.metrics.coldStartDuration + (funcs.metrics.waitTime > 2000 ? funcs.metrics.waitTime - 2000:0)
+        
         if(only_seq & i == 0){
-            preFunctions[0].arrivalRate = condActionArrivalRate*10
+            preFunctions[0].arrivalRate = condActionArrivalRate
         }
     });
 
@@ -183,7 +189,7 @@ function buildMessage(pre,post,period,limit,preMetrics,only_seq){
             
                 postFunctions.push({
                     "name":funcs.function.name,
-                    "arrivalRate":condActionArrivalRate*10,
+                    "arrivalRate":condActionArrivalRate,
                     //"arrivalRate":funcs.metrics.arrivalRate,
                     //"arrivalRate":funcs.metrics.arrivalRate*10,
                     //"arrivalRate":0.5,
@@ -197,7 +203,7 @@ function buildMessage(pre,post,period,limit,preMetrics,only_seq){
         }else{
             postFunctions.push({
                 "name":post.function.name,
-                "arrivalRate":condActionArrivalRate*10,
+                "arrivalRate":condActionArrivalRate,
                 //"arrivalRate":post.metrics.arrivalRate,
                 //"arrivalRate":funcs.metrics.arrivalRate*10,
                 //"arrivalRate":0.5,

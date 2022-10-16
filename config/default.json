@@ -46,7 +46,7 @@
         },
         "system":{
             "limits":{
-                "memory":1024, 
+                "memory":2048, 
                 "timeout":60000, 
                 "concurrency":1,
                 "logs":10

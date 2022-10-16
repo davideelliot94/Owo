@@ -40,6 +40,7 @@ function zipDirLocal(subfolder){
 
 function getFileSize(subfolder){
   const p = path.join(__dirname,subfolder);
+  console.log(p)
   const stat = fs.statSync(p);
   return stat.size
   

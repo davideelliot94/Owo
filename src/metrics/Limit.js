@@ -1,5 +1,3 @@
-import { time } from "console"
-
 class Limit {
 
     constructor(

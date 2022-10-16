@@ -22,6 +22,11 @@ function logError(mex){
     logger.error(mex);
 }
 
+/**
+ * 
+ * @param {string} mex message to log
+ * @param {string} kind severity_level -> info,warn,error,debug
+ */
 function log(mex,kind){
     switch (kind) {
 
@@ -42,7 +47,7 @@ function log(mex,kind){
             break;
 
         default:
-            logWarn(mex);
+            logInfo(mex);
             break;
     }
 }

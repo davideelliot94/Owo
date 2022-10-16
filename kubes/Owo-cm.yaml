@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: owo-configmap
+data:
+  api_gateway_host: "owdev-nginx.openwhisk.svc.cluster.local"
+  prometheus_host: "owdev-prometheus-server.openwhisk.svc.cluster.local"
+  kafka_host: "owdev-kafka.openwhisk.svc.cluster.local"

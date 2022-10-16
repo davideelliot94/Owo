@@ -13,4 +13,5 @@ app.listen(conf.PORT, async ()=>{
     logger.log("HOST: "+conf.API_HOST,"info");
     logger.log("METRICS_ENDPOINT: "+conf.METRICS_ENDPOINT,"info");
     logger.log("Listening on port "+ conf.PORT,"info");
+    
 });

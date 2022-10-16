@@ -10,20 +10,20 @@ class Action {
                 fasynch,
                 flimits,
                 fmetrics,
-                fcodeSize
+                fcode_size
                 ) {
         this.fname = fname
         this.fcode = fcode
-        this.finvocation = finvocation;
+        this.finvocation = finvocation
         this.fparam = fparam
         this.fbinary = fbinary
-        this.fdependencies = fdependencies;
+        this.fdependencies = fdependencies
         this.fkind = fkind
         this.fasynch = fasynch
         this.flimits = flimits
-        this.fmetrics = fmetrics;
-        this.fto_merge = false;
-        this.fcodeSize = fcodeSize;
+        this.fmetrics = fmetrics
+        this.fto_merge = false
+        this.fcode_size = fcode_size
     }
 
 
@@ -112,39 +112,21 @@ class Action {
         this.fmetrics = metrics
     }
 
-    get codeSize(){
-        return this.fcodeSize
+    get code_size() {
+        return this.fcode_size
     }
 
-    set codeSize(codeSize){
-        this.fcodeSize = codeSize
+    set code_size(code_size){
+        this.fcode_size = code_size
     }
 
     get to_merge(){
         return this.fto_merge
     }
 
-
     set to_merge(to_merge){
         this.fto_merge = to_merge
     }
-
-    setToMerge(to_merge){
-        this.to_merge = to_merge
-    }
-
-    setAsync(isAsynch) {
-        this.asynch = isAsynch;
-    }   
-
-    // Method
-    setMetrics(metric) {
-
-        this.metric = metric;
-
-        //bla bla bla
-    }
-
   }
 
   export default Action;

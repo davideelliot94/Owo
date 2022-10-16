@@ -85,6 +85,7 @@ rm ballerina-2201.2.0-swan-lake-linux-x64.deb
 fi
 
 if $9 -eq true
+then
 
 echo " \n-----------------------------\n INSTALLING JAVA \n-----------------------------\n" 
 
