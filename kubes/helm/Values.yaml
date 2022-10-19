@@ -1,9 +1,0 @@
-replicaCount: 1
-
-image:
-  name: owo
-  repository: davideelliot/--
-  pullPolicy: ifNotPresent
-  volumeName: owoVolume
-  volumeMountPath:  /owo/cli 
-  tag: ""

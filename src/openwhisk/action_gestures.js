@@ -1,6 +1,6 @@
 import * as conf from '../../config/conf.cjs';
 import * as fs from 'fs';
-import path, { resolve } from "path";
+import path from "path";
 import * as logger from "../log/logger.cjs";
 import fetch from 'node-fetch';
 import * as utils from "../utils/utils.js";
@@ -68,17 +68,20 @@ async function invokeActionWithParams(funcName,params,blocking) {
 /**
  * 
  * @param {string} funcName name of the function to create
- * @param {string} funcBody snippet of code/ base64 artifact
+ * @param {string} funcBody snippet of code/ base64 artifact / list of action names
  * @param {string} fkind kind of function to create -> binary,sequence,plain_text
- * @param {string} merge_type kind of merge -> binary, not binary
+ * @param {string} action_type kind of merge -> binary, not binary
  * @param {Limits} limits function limits
  * @param {function} callback 
  * @returns 
  */
 
-function createActionCB(funcName,funcBody,fkind,merge_type,limits,callback){
+/**
+ * GESTIONE DEL NAMESPACE?
+ */
+function createActionCB(funcName,funcBody,fkind,action_type,limits,callback){
 
-    if(merge_type === "binary"){
+    if(action_type === "binary"){
 
         //MERGE DI TIPO BINARIO
         try {
@@ -172,10 +175,11 @@ function createActionCB(funcName,funcBody,fkind,merge_type,limits,callback){
  * @param {string} funcName name of the function to create
  * @param {string} funcBody snippet of code/ base64 artifact
  * @param {Limits} limits function limits
+ * @param {string} dockerImg docker img name
  * @param {function} callback 
  * @returns 
  */
-function createDockerActionCB(funcName,funcBody,limits,callback){
+function createDockerActionCB(funcName,funcBody,limits,dockerImg,callback){
     try {
         (async () => {
             const rawResponse = await fetch('https://'+conf.API_HOST+'/api/v1/namespaces/_/actions/'+funcName+'?overwrite=true', {
@@ -669,6 +673,259 @@ function computeLimit(functionsArray){
 }
 
 
+
+/**
+ * 
+ * @param {JSON object} element function to parse
+ * @param {timestamp} timestamp 
+ * @param {timestamp} binaries_timestamp 
+ * @param {*} configuration 
+ * @returns Action class 
+ */
+
+//18102022
+export async function parseActionTest(element,timestamp,binaries_timestamp){
+
+    logger.log("Parsing function","info");
+
+    if(element.exec.binary) {
+
+        let buff = Buffer.from(element.exec.code,'base64');
+
+        const dirPath = path.join(__dirname ,"src/utils/zip_workdir/zipped/") + timestamp;
+        const zipPath = path.join(__dirname , "src/utils/zip_workdir/zipped/") + timestamp + '/func.zip';
+       
+
+        // get size
+
+        
+        fs.mkdirSync(dirPath, { recursive: true });
+        fs.writeFileSync(zipPath, buff);
+        const codeSize = zipgest.getFileSize(zipPath);
+        await zipgest.extractZipLocal(timestamp);
+
+        var kind = element.exec.kind;
+
+        
+        if(kind.includes("nodejs")){
+            var packRaw = utils.getPackageInfoBinaryNode(timestamp)
+            var pack = JSON.parse(packRaw);
+
+            var func = utils.getMainFileBinary(timestamp,pack.main); 
+            const binaries = path.join(__dirname,"src/utils/binaries/");
+            fs.mkdirSync(binaries+ binaries_timestamp, { recursive: true });
+
+            //ROUTINE PER LEGGERE IL CONTENUTO DI TUTTI I FILE 
+            const file_list =utils.copyAllFilesTest("/src/utils/zip_workdir/extracted/"+timestamp,"/src/utils/binaries/"+binaries_timestamp,pack.main)
+            zipgest.cleanDirs("/zip_workdir/extracted/"+timestamp);
+
+            let main_func;
+            let main_func_invocation
+
+            if (func.indexOf("exports.main") === -1){
+                main_func = "main"
+                main_func_invocation = func.substring(func.indexOf(main_func))
+            }else{
+                const last_line = (func.substring(func.indexOf("exports.main"),func.length))
+                main_func = last_line.substring(last_line.indexOf("=")+1,last_line.indexOf(";")).trim()
+                main_func_invocation = func.substring(func.indexOf(main_func))
+            }
+
+            //devo aggiungere una variabile a "invokation" per evitare duplicati nelle funzioni con stesso nome 
+
+            var limit = new Limits(
+                                element.limits.concurrency,
+                                element.limits.logs,
+                                element.limits.memory,
+                                element.limits.timeout        
+                                )  
+
+            const action = new Action(
+                                element.name,
+                                func.replace(" "+main_func+"("," "+element.name +timestamp+"("),
+                                element.name +timestamp+"(",
+                                main_func_invocation.substring(main_func_invocation.indexOf(main_func+"(")+main_func.length + 1,main_func_invocation.indexOf(")")),
+                                true,
+                                (pack.dependencies === undefined || pack.dependencies === null )? "" :pack.dependencies,
+                                kind,
+                                false,
+                                limit,
+                                null,
+                                codeSize
+                            )
+
+            if(action.code.includes("async ") || action.code.includes(" Promise") || action.code.includes(".then(")){
+                action.asynch = true;
+            }
+
+            if(file_list.length > 0){
+                file_list.forEach(lf=>{
+                    tmp.code = tmp.code.replace(lf.split("-")[0]+lf.split("-")[1],lf)
+                })
+            }
+
+            return action;
+        }
+
+        if(kind.includes("python")){
+
+            var func = utils.getMainFileBinary(timestamp,"__main__.py"); 
+
+            const binaries = path.join(__dirname,"src/utils/binaries/");
+            fs.mkdirSync(binaries+ binaries_timestamp, { recursive: true });
+
+            //ROUTINE PER LEGGERE IL CONTENUTO DI TUTTI I FILE
+
+            const file_list =utils.copyAllFilesTest("/src/utils/zip_workdir/extracted/"+timestamp,"/src/utils/binaries/"+binaries_timestamp,"__main__.py")
+            zipgest.cleanDirs("/zip_workdir/extracted/"+timestamp);
+
+            let main_func= "main"
+/*
+            if (func.indexOf("main") === -1){
+                main_func = "main"
+            }else{
+                main_func = "main"
+            }*/
+
+
+            
+            var limit = new Limits(
+                                element.limits.concurrency,
+                                element.limits.logs,
+                                element.limits.memory,
+                                element.limits.timeout        
+                                )
+
+            const action = new Action(
+                                element.name,
+                                func.replace(" "+main_func+"("," "+element.name +timestamp+"("),
+                                element.name + timestamp+"(",
+                                func.substring(func.indexOf(main_func+"(") +main_func.length+ 1, func.indexOf(")")),
+                                true,
+                                null,
+                                kind,
+                                false,
+                                limit,
+                                null,
+                                codeSize
+                            )
+
+            /*
+            if(file_list.length > 0){
+                file_list.forEach(lf=>{
+                    tmp.code = tmp.code.replace(" "+lf.split("-")[0]+" "," "+lf+" ")
+                })
+            }*/
+
+            if(file_list.length > 0){
+                file_list.forEach(lf=>{
+                    tmp.code = tmp.code.replace(lf.split("-")[0]+lf.split("-")[1],lf)
+                })
+            }
+            
+
+            if(action.code.includes("async ") || action.code.includes(" await ")){
+                action.asynch = true;
+            }
+            
+            return action;
+
+        }     
+     
+    }else {
+        logger.log("Not binary function","info");
+        var func = element.exec.code
+        const codeSize = Buffer.byteLength(func, "utf-8");
+        var kind = utils.detectLangSimple(func);
+
+        if(kind.includes("nodejs")){
+
+            let main_func;
+            let main_func_invocation
+
+            if (func.indexOf("exports.main") === -1){
+                main_func = "main";
+                main_func_invocation = func.substring(func.indexOf(main_func))
+
+            }else{
+                const last_line = (func.substring(func.indexOf("exports.main"),func.length))
+                main_func = last_line.substring(last_line.indexOf("=")+1,last_line.indexOf(";")).trim()
+                main_func_invocation = func.substring(func.indexOf(main_func))
+            }
+
+            var limit = new Limits(
+                element.limits.concurrency,
+                element.limits.logs,
+                element.limits.memory,
+                element.limits.timeout        
+                )
+
+            var func = element.exec.code;
+            const action = new Action(
+                                element.name,
+                                func.replace(" "+main_func+"("," "+element.name +timestamp+"("),
+                                element.name +timestamp+ "(",
+                                main_func_invocation.substring(main_func_invocation.indexOf(main_func+"(")+main_func.length + 1,main_func_invocation.indexOf(")")),
+                                false,
+                                null,
+                                kind,
+                                false,
+                                limit,
+                                null,
+                                codeSize
+                            )
+
+
+            if(action.code.includes("async ") || action.code.includes(" Promise") || action.code.includes(".then(")){
+                action.asynch = true;
+            }
+
+            return action;
+        }
+
+        //devo controllare come funziona per il main se python
+        if(kind.includes("python")){
+
+            let main_func = "main";
+            /*
+            if (func.indexOf("main") === -1){
+                main_func = "main"
+            }else{
+                main_func = "main"
+            }*/
+
+            
+            var limit = new Limits(
+                                element.limits.concurrency,
+                                element.limits.logs,
+                                element.limits.memory,
+                                element.limits.timeout        
+                                )
+            var func = element.exec.code;
+            const action = new Action(
+                                element.name,
+                                func.replace(" "+main_func+"("," "+element.name +timestamp+"("),
+                                element.name +timestamp+ "(",
+                                main_func_invocation.substring(main_func_invocation.indexOf(main_func+"(")+main_func.length + 1,main_func_invocation.indexOf(")")),
+                                false,
+                                null,
+                                kind,
+                                false,
+                                limit,
+                                null,
+                                codeSize
+                            )
+           
+            if(action.code.includes("async ") || action.code.includes(" await ")){
+                action.asynch = true;
+            }
+
+            return action;
+        } 
+    }
+}
+
+
 export {
         getAction,
         invokeActionWithParams,
@@ -677,5 +934,6 @@ export {
         createActionCB,
         getMetricsByActionNameAndPeriod,
         listActionsCB,
-        computeLimit
+        computeLimit,
+        createDockerActionCB
     };

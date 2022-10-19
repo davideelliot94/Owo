@@ -1,7 +1,5 @@
 apiVersion: v2
-type: application
 name: owo
 version: 0.1.0
-appVersion: 0.8.0
-kubeVersion: ">=v1.19.0-r0"
-description: Owo chart
+appVersion: 0.8
+description: My first owo chart

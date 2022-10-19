@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.name }}-configmap
+data:
+  api_gateway_host: {{ .Values.configMap.data.api_gateway_host }}
+  prometheus_host: {{ .Values.configMap.data.prometheus_host }}
+  kafka_host: {{ .Values.configMap.data.kafka_host }}

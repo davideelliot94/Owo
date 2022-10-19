@@ -1,61 +1,61 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: faasopt-deployment
+  name: {{ .Release.name }}-deployment
   labels:
-    app: faas-optimizer
+    app: {{ .Values.deployment.image.label }}
 spec:
-  replicas: 1
+  replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: faas-optimizer
+      app: {{ .Values.deployment.image.label }}
   template:
     metadata:
       labels:
-        app: faas-optimizer
+        app: {{ .Values.deployment.image.label }}
     spec:
       containers:
-      - name: faas-optimizer
-        image: davideelliot/faas-optimizer:0.2
+      - name: {{ .Values.deployment.image.name }}
+        image: {{ .Values.deployment.image.repository }}
         volumeMounts:
-        - mountPath: /faas-optimizer/cli
-          name: cli
+        - mountPath: {{ .Values.deployment.image.volumes.mountPath }}
+          name: {{ .Values.deployment.image.volumes.volumeName }}
         resources:
           requests:
-            memory: "64Mi"
-            cpu: "250m"
+            memory: {{ .Values.deployment.image.resources.requests.memory }}
+            cpu: {{ .Values.deployment.image.resources.requests.cpu }}
           limits:
-            memory: "128Mi"
-            cpu: "500m"
+            memory: {{ .Values.deployment.image.resources.limits.memory }}
+            cpu: {{ .Values.deployment.image.resources.limits.cpu }}
         env:
         - name: API_HOST
           valueFrom:
             configMapKeyRef:
-              name: owo-configmap
-              key: api_gateway_host
+              name: {{ .Values.deployment.env.cm.name }}
+              key: {{ .Values.deployment.env.cm.apiHost }}
         - name: METRICS_ENDPOINT
           valueFrom:
             configMapKeyRef:
-              name: owo-configmap
-              key: prometheus_host
+              name: {{ .Values.deployment.env.cm.name }}
+              key: {{ .Values.deployment.env.cm.prometheus }}
         - name: KAFKA_BOOTSTRAP_BROKER
           valueFrom:
             configMapKeyRef:
-              name: owo-configmap
-              key: kafka_host
+              name: {{ .Values.deployment.env.cm.name }}
+              key: {{ .Values.deployment.env.cm.kafka }}
         - name: DOCKER_HUB_USERNAME
           valueFrom:
             secretKeyRef:
-              name: dockerhub-secret
-              key: username
+              name: {{ .Values.deployment.env.secrets.docker_hub.name }}
+              key: {{ .Values.deployment.env.secrets.docker_hub.dhusername }}
         - name: DOCKER_HUB_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: dockerhub-secret
-              key: password
+              name: {{ .Values.deployment.env.secrets.docker_hub.name }}
+              key: {{ .Values.deployment.env.secrets.docker_hub.dhpassword }}
         ports:
-        - containerPort: 4000
+        - containerPort: {{ .Values.deployment.image.ports.containerPort }}
       volumes:
-      - name: cli
+      - name: {{ .Values.deployment.image.volumes.volumeName }}
         hostPath:
-          path: /home/master/faas-optimizer/cli
+          path: {{ .Values.deployment.image.volumes.hostPath }}

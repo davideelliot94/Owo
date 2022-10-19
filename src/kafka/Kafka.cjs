@@ -50,9 +50,11 @@ const consumer = kafka.consumer({ groupId: "default" });
             topic: topicC,
             fromBeginning: true
         })
+        return true;
     } catch (error) {
-        logger.log(error,"error")
-        process.exit(1)
+        logger.log(error,"error");
+        return false;
+        //process.exit(1)
     }
 }
 
@@ -155,7 +157,7 @@ function buildMessage(pre,post,period,limit,preMetrics,only_seq){
 
         preFunctions.push({
             "name":funcs.function.name,
-            "arrivalRate":only_seq ? 0.0 : post == null ? funcs.metrics.arrivalRate: (funcs.metrics.arrivalRate - condActionArrivalRate),
+            "arrivalRate":only_seq ? 0.0 :( post == null ? funcs.metrics.arrivalRate: (funcs.metrics.arrivalRate - condActionArrivalRate)),
             //"arrivalRate":funcs.metrics.arrivalRate*10,
             //"arrivalRate":0.5,
             "avgDuration":funcs.metrics.duration/1000,

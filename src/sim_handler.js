@@ -1,16 +1,16 @@
 import * as fg from "./openwhisk/action_gestures.js";
 import * as logger from "./log/logger.cjs";
 import * as kafka from "./kafka/Kafka.cjs";
-import Limit from "./metrics/Limit.js";
 import Metric from "./metrics/Metric.js";
 
 export async function simulateSequence(req,res){
     logger.log("/api/v1/sequence/sim", "info");
     const sequenceName = req.body.seq;
     const optName = req.body.opt === undefined || req.body.opt === null || req.body.opt === "" ? null:req.body.opt;
-    var period = req.body.period === undefined || req.body.period === null || req.body.period === "" ? null:req.body.period;
+    const period = req.body.period === undefined || req.body.period === null || req.body.period === "" ? null:req.body.period;
+    const seqOnly = req.body.seqonly === undefined || req.body.seqonly === null ? false:req.body.seqonly;
 
-    const message = await prepareSimulation(sequenceName,optName,period)
+    const message = await prepareSimulation(sequenceName,optName,period,seqOnly)
 
     kafka.sendToKafka(message)
 
@@ -99,9 +99,10 @@ export async function compareOptimization(req,res){
  * @param {string} sequenceName name of the provided sequence to simulate
  * @param {string} optSequenceName name of the optimized function
  * @param {string} p period  
+ * @param {Boolean} seqonly if simulation will include actions primary invocations
  * @returns kafka message -> JSON object
  */
-async function prepareSimulation(sequenceName,optSequenceName,p){
+async function prepareSimulation(sequenceName,optSequenceName,p,seqonly){
 
     var period = p == null ? '1d':p
     const result = await fg.getAction(sequenceName);
@@ -122,8 +123,10 @@ async function prepareSimulation(sequenceName,optSequenceName,p){
         return;
     }
 
+    let wOpt = false
     if(optSequenceName != null || optSequenceName != undefined){
         funcs.push({function:{"name":optSequenceName,"limits":{}},"metrics":{}});
+        wOpt = true;
     }
 
     result.exec.components.forEach(element => {
@@ -144,7 +147,8 @@ async function prepareSimulation(sequenceName,optSequenceName,p){
 
     const resolvedfuncWithMetrics = await Promise.all(funcWithMetrics);
 
-    const message = kafka.buildMessage(resolvedfuncWithMetrics,null,period,result.limits,condAction,false)
+    const message = kafka.buildMessage(seqonly && wOpt ? [resolvedfuncWithMetrics[0]]:resolvedfuncWithMetrics,
+                                        null,period,result.limits,condAction,seqonly)
     message.name = optSequenceName == null ? sequenceName + "_" + period:optSequenceName + "_" + period;
 
     return message;

@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.name }}-service
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app: owo
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.targetPort }}
+      nodePort: {{ .Values.service.nodePort }}
+      protocol: {{ .Values.service.protocol }}
+
+
+      
