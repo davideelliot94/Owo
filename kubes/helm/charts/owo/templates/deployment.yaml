@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.name }}-deployment
+  name: {{ .Values.name }}-deployment
   labels:
     app: {{ .Values.deployment.image.label }}
 spec:
@@ -47,12 +47,12 @@ spec:
           valueFrom:
             secretKeyRef:
               name: {{ .Values.deployment.env.secrets.docker_hub.name }}
-              key: {{ .Values.deployment.env.secrets.docker_hub.dhusername }}
+              key: {{ .Values.deployment.env.secrets.docker_hub.username }}
         - name: DOCKER_HUB_PASSWORD
           valueFrom:
             secretKeyRef:
               name: {{ .Values.deployment.env.secrets.docker_hub.name }}
-              key: {{ .Values.deployment.env.secrets.docker_hub.dhpassword }}
+              key: {{ .Values.deployment.env.secrets.docker_hub.password }}
         ports:
         - containerPort: {{ .Values.deployment.image.ports.containerPort }}
       volumes:

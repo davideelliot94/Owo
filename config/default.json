@@ -114,12 +114,12 @@
     },
     "simulation":true,
     "kafka":{
-        "endpoint":"http://192.168.0.109:9092/",
+        "endpoint":"http://192.168.0.110:9092/",
         "topic":{
             "produce":"TEST1",
             "consume":"TEST2"
         },
-        "boostrap_server":"192.168.0.109:9092"
+        "boostrap_server":"192.168.0.110:9092"
     },
     "docker_hub":{
         "username":"davideelliot",

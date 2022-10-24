@@ -16,120 +16,8 @@ const __dirname = path.resolve();
  * @param {Boolean} whole  true -> merge full, false -> partial merge
  * @returns 
  */
-async function merge(functions_to_merge,seq_name,whole){
-    return new Promise(function(resolve, reject) {
 
-        if(!whole) seq_name = seq_name+"-part"+Date.now();
-
-        var sameLangCounter = 0;
-        const prevKind = functions_to_merge[0].kind;
-        var merged_seq_limits = fg.computeLimit(functions_to_merge);
-        var binary_count = functions_to_merge[0].binary ? 1:0;
-
-        if(functions_to_merge.length <=1){
-            resolve( [seq_name,merged_seq_limits,result,functions_to_merge[0]]);
-        }                               
-
-        for (let index = 1; index < functions_to_merge.length; index++) {
-
-            //COUNTER PER DETERMINARE SE TUTTE LE ACTION HANNO LO STESSO LINGUAGGIO     
-            if (functions_to_merge[index].kind.split(":")[0] === prevKind.split(":")[0]) {
-                sameLangCounter++;
-            }
-            //COUNTER PER DETERMINARE SE E QUANTE FUNZIONI BINARIE CI SONO
-            if (functions_to_merge[index].binary) {
-                binary_count++;
-            }
-        }
-
-        var funcs = functions_to_merge;
-
-        if (sameLangCounter == funcs.length -1) { 
-
-            // le functions hanno tutte le stessa Kind (linguaggio) posso fonderle come plain text
-            if (binary_count > 0) {
-                // almeno una binaria 
-                mergeFuncsBinarySameLangCB(funcs, seq_name,binaries_timestamp, function (timestamp_folder) {
-                    zipgest.zipDirLocalCB("binaries/" + timestamp_folder, (file) => {
-                        const size = zipgest.getFileSize("binaries/" + timestamp_folder+ ".zip");
-                        const mb = 1024000
-
-                        if(size/mb >= 35){
-                            res.json("Arctifact too big, sequence can't be optimized")
-                            return;
-                        }else{
-                            fg.createActionCB(seq_name, file, prevKind,"binary",merged_seq_limits, function (result) {
-                                zipgest.cleanDirs("/binaries/" + timestamp_folder);
-                                zipgest.cleanDirs("/binaries/" + timestamp_folder + ".zip");
-                                resolve( [seq_name,merged_seq_limits,result]);
-                            });
-                        }
-                    })
-                })
-            } else {
-                // solo plain text
-                mergePlainTextFuncs(funcs, function (wrappedFunc) {
-                    if(whole){
-                        fg.deleteActionCB(seq_name, function (data) {
-                            fg.createActionCB(seq_name, wrappedFunc, prevKind,"plain",merged_seq_limits, function (result) {
-                                resolve( [seq_name,merged_seq_limits,result]);
-                            });
-                        });
-                    }else{
-                        fg.createActionCB(seq_name, wrappedFunc, prevKind,"plain",merged_seq_limits, function (result) {
-                            resolve( [seq_name,merged_seq_limits,result]);
-                        });  
-                    }         
-                });
-            }        
-        } else {
-
-            //le functions non hanno tutte le stessa Kind (linguaggio) devo fonderle come binary ( zip file )
-            //LA FUNZIONE FA IL MERGE DI FUNZIONI DI LUNGUAGGIO DIVERSO MA NON DI FUNZIONI 
-            //PLAIN TEXT CON FUNZIONI BINARIE
-
-            //mergeDiffLangActions(funcs, seq_name,binaries_timestamp, function (timestamp_folder,docker_img) {
-            mergeFuncsDiffLangPlainTextBinary(funcs, seq_name,binaries_timestamp, function (timestamp_folder) {
-                zipgest.zipDirLocalCB("binaries/" + timestamp_folder, (file) => {
-                    const size = zipgest.getFileSize("binaries/" + timestamp_folder+ ".zip");
-                    const mb = 1024000
-
-                    if(size/mb >= 35){
-                        res.json("Arctifact too big, sequence can't be optimized")
-                        return;
-                    }else{
-                        if(whole){
-                            fg.deleteActionCB(seq_name, function (data) {
-                                fg.createActionCB(seq_name, file,"nodejs:default" ,"binary",merged_seq_limits, function (result) {
-                                    zipgest.cleanDirs("/binaries/" + timestamp_folder);
-                                    zipgest.cleanDirs("/binaries/" + timestamp_folder + ".zip");
-                                    resolve( [seq_name,merged_seq_limits,result]);
-                                });
-                            })
-                        }else{
-                            fg.createActionCB(seq_name, file,"nodejs:default" ,"binary",merged_seq_limits, function (result) {      
-                                zipgest.cleanDirs("/binaries/" + timestamp_folder);
-                                zipgest.cleanDirs("/binaries/" + timestamp_folder + ".zip");
-                                resolve( [seq_name,merged_seq_limits,result]);
-                            }); 
-                        }   
-                    }                               
-                })
-            });        
-        }
-    });
-}
-
-/**
- * 
- * @param {Array of Action classes} functions_to_merge 
- * @param {String} seq_name 
- * @param {Boolean} whole  true -> merge full, false -> partial merge
- * @returns 
- */
-
-//17102022
-export async function mergeTest(functions_to_merge,seq_name,whole){
+async function merge(functions_to_merge,seq_name,binaries_timestamp,whole){
     return new Promise(function(resolve, reject) {
 
         if(!whole) seq_name = seq_name+"-part"+Date.now();
@@ -168,8 +56,7 @@ export async function mergeTest(functions_to_merge,seq_name,whole){
                         const mb = 1024000
 
                         if(size/mb >= 35){
-                            res.json({"mex":"Arctifact too big, sequence can't be optimized"})
-                            return;
+                            return "Arctifact too big, sequence can't be optimized"
                         }else{
                             fg.createActionCB(seq_name, file, prevKind,"binary",merged_seq_limits, function (result) {
                                 //zipgest.cleanDirs("/binaries/" + timestamp_folder);
@@ -203,19 +90,25 @@ export async function mergeTest(functions_to_merge,seq_name,whole){
                     const mb = 1024000
 
                     if(size/mb >= 35){
-                        res.json("Arctifact too big, sequence can't be optimized")
-                        return;
+                        return "Arctifact too big, sequence can't be optimized"
                     }else{
                         if(whole){
                             fg.deleteActionCB(seq_name, function (data) {
-                                fg.createDockerActionCB(seq_name, file,"nodejs:default" ,"binary",merged_seq_limits,docker_img, function (result) {
+                                fg.createDockerActionCB(seq_name, file,merged_seq_limits,docker_img, function (result) {
+                                    if(Object.keys(result).includes("error")){
+                                        reject(result)
+                                    }
+                                    //DEVO CONTROLLARE TUTTE LE VOLTE CHE CREO UNA ACTION SE IL RISULTATO CONTIENE "error"
+                                    // esempio
+                                    //{"code":"CEg5yjaCKcJlAAIAXvJwfp0ZHqCQLoLQ","error":"The request content was malformed:\n'image' must be a string defined in 'exec' for 'blackbox' actions"}
+                                    
                                     //zipgest.cleanDirs("/binaries/" + timestamp_folder);
                                     //zipgest.cleanDirs("/binaries/" + timestamp_folder + ".zip");
                                     resolve( [seq_name,merged_seq_limits,result]);
                                 });
                             })
                         }else{
-                            fg.createDockerActionCB(seq_name, file,"nodejs:default" ,"binary",merged_seq_limits,docker_img, function (result) {      
+                            fg.createDockerActionCB(seq_name, file,merged_seq_limits,docker_img, function (result) {      
                                 //zipgest.cleanDirs("/binaries/" + timestamp_folder);
                                 //zipgest.cleanDirs("/binaries/" + timestamp_folder + ".zip");
                                 resolve( [seq_name,merged_seq_limits,result]);
@@ -894,24 +787,6 @@ function mergePlainTextFuncs(funcs,callback){
  * @param {*} callback 
  */
 function mergeDiffLangActions(funcs,seqName,binaries_timestamp,callback){
-    /**
-     * MERGE USING DOCKER ACTIONS
-     * 
-     * NEEDS:
-     * 
-     * A LIST OF THE LANGUAGES OF THE ACTIONS 
-     * 
-     * DOCKERFILE BUILD 
-     * 
-     * TO PUSH DOCKER IMAGES TO DOCKER HUB
-     * 
-     * 
-     * 
-     */
-
-    /**
-     * MERGE DI DUE FUNZIONI DI LINGUAGGIO DIVERSO IN UNA FUNZIONE BINARIA NODEJS CON I CORRETTI ENVIRONMENT INSTALLATI
-     */
 
     logger.log("Merging different lang actions","info");
 
@@ -1110,9 +985,9 @@ function mergeDiffLangActions(funcs,seqName,binaries_timestamp,callback){
     var pjraw = {
         "name": seqName,
         "version": "1.0.0",
-        "description": "An action written as an npm package.",
+        "description": "Optimization of sequence "+seqName+" made by Owo",
         "main": "index.js",
-        "author": "FaaS-Optimizer",
+        "author": "Owo",
         "license": "Apache-2.0",
         "dependencies": dependecies
     };
@@ -1120,9 +995,10 @@ function mergeDiffLangActions(funcs,seqName,binaries_timestamp,callback){
     
     fs.writeFileSync(binaries+ binaries_timestamp + '/package.json', pj,{encoding: "utf8"});
     fs.writeFileSync(binaries+ binaries_timestamp + '/index.js', buff,{encoding: "utf8"});
-    const full_docker_img = conf.DOCKER_BASE_IMG+":"+img_tag
+    const full_docker_img = conf.DOCKER_IMG_FULL+":"+img_tag
 
-    child_process.execSync("docker build . -t "+full_docker_img+" -f "+path.join(__dirname,"../../dockers/custom_runtime/Dockerfile")).toString();
+    child_process.execSync("(cd "+path.join(__dirname,"/dockers/custom_runtime/")+"; docker build . -t "+full_docker_img+")").toString();
+    child_process.execSync("docker push "+full_docker_img).toString();
 
     callback(binaries_timestamp,full_docker_img);
 }
@@ -1177,8 +1053,7 @@ function getMainFileBinary(timestamp,name){
     return func.toString();
 }
 
-//VERSIONE DI copyAllFiles che rinomina i file per assicurarsi che non ci siano duplicati
-function copyAllFilesTest(extracted,binaries,main_name){
+function copyAllFiles(extracted,binaries,main_name){
     const fullPath_extracted = path.join(__dirname,extracted);
     const fullPath_binaries = path.join(__dirname,binaries);
 
@@ -1207,39 +1082,6 @@ function copyAllFilesTest(extracted,binaries,main_name){
         })
     }
     return file_list
-}
-
-/**
- * 
- * @param {*} extracted 
- * @param {*} binaries 
- * @param {*} main_name 
- */
-function copyAllFiles(extracted,binaries,main_name){
-    const fullPath_extracted = path.join(__dirname,extracted);
-    const fullPath_binaries = path.join(__dirname,binaries);
-
-    var lsFiles = child_process.execSync("ls -p "+fullPath_extracted +" | grep -v / ").toString();
-    var lsSplitFiles = lsFiles.split("\n");
-    lsSplitFiles.forEach(file =>{
-        if(!file.includes(main_name) && file.length > 1){
-            child_process.execSync("cp -r "+fullPath_extracted+"/"+file + " " +fullPath_binaries+"/"+file+"-"+timestamp);       
-        }
-    })
-
-    var subDirCount = child_process.execSync("find "+ fullPath_extracted +"/ -maxdepth 1 -type d | wc -l");
-    if(subDirCount > 1){
-        var lsDirs = child_process.execSync("ls -d "+fullPath_extracted +"/*/").toString();
-        var lsSplitDirs = lsDirs.split("\n");
-        lsSplitDirs.forEach(dir =>{
-            if(dir.length > 1 ){
-                const dir_arr = dir.split("/");
-                const dirname = dir_arr[dir_arr.length -2]
-
-                child_process.execSync("cp -R "+fullPath_extracted+"/"+dirname + " " +fullPath_binaries+"/"+dirname);            
-            }
-        })
-    }
 }
 
 /**
@@ -1408,7 +1250,6 @@ export {
         getMainFileBinary,
         getPackageInfoBinaryNode,
         copyAllFiles,
-        copyAllFilesTest,
         applyMergePolicies,
         checkPartialMerges
     };

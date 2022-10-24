@@ -7,9 +7,10 @@ const HTTPS_AGENT = new https.Agent({rejectUnauthorized: false});
  * DOCKER HUB
  */
 
-const DOCKER_HUB_USERNAME = process.env.DOCKER_HUB_USERNAME
-const DOCKER_HUB_PASSWORD = process.env.DOCKER_HUB_PASSWORD
+const DOCKER_HUB_USERNAME = process.env.DOCKER_HUB_USERNAME === undefined ? config.get("docker_hub.username"):process.env.DOCKER_HUB_USERNAME ;
+const DOCKER_HUB_PASSWORD = process.env.DOCKER_HUB_PASSWORD 
 const DOCKER_BASE_IMG = config.get("docker_hub.img_name");
+const DOCKER_IMG_FULL = DOCKER_HUB_USERNAME + "/" + DOCKER_BASE_IMG
 
 /**
  * ENDPOINTS
@@ -64,5 +65,6 @@ module.exports =
                     HTTPS_AGENT,
                     DOCKER_HUB_USERNAME,
                     DOCKER_HUB_PASSWORD,
-                    DOCKER_BASE_IMG
+                    DOCKER_BASE_IMG,
+                    DOCKER_IMG_FULL
                 }

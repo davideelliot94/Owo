@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ .Release.name }}-configmap
+  name: {{ .Values.name }}-configmap
 data:
   api_gateway_host: {{ .Values.configMap.data.api_gateway_host }}
   prometheus_host: {{ .Values.configMap.data.prometheus_host }}

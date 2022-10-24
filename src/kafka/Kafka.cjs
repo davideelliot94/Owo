@@ -167,8 +167,8 @@ function buildMessage(pre,post,period,limit,preMetrics,only_seq){
         avgColdStartDuration += funcs.metrics.coldStartDuration /1000
         //avgColdStartDuration += funcs.metrics.coldStartDuration + (funcs.metrics.waitTime > 2000 ? funcs.metrics.waitTime - 2000:0)
         
-        if(only_seq & i == 0){
-            preFunctions[0].arrivalRate = condActionArrivalRate
+        if(only_seq & i == 0 ){
+            preFunctions[0].arrivalRate = condActionArrivalRate > 0 ?condActionArrivalRate:funcs.metrics.arrivalRate
         }
     });
 

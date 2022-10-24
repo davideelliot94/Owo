@@ -1,5 +1,5 @@
 replicaCount: 1
-
+name: owo
 configMap:
   name: owo-configmap
   data:
@@ -10,26 +10,26 @@ configMap:
 secret:
   type: Opaque
   docker_hub:
-    name: dockerhub-secret
+    name: owo-secret
     data:
-      username: ZGF2aWRlZWxsaW90
-      password: cG5NRkduLjk0RG9ja2VySHVi
+      username: ZGF2aWRlCg==
+      password: cGFzc3dvcmQK
 
-tls-secret:
+tls:
   type: kubernetes.io/tls
   data:
-   crt: base64
-   key: base64
+   crt: YmFzZTY0Cg==
+   key: YmFzZTY0Cg==
 
 deployment:
   name: owo-deployment
   image:
     name: owo
     label: owo
-    repository: davideelliot/faas-optimizer:0.2
+    repository: davideelliot/faas-optimizer:test
     pullPolicy: ifNotPresent
     volumes:
-      volumeName: owoVolume
+      volumeName: owovolume
       mountPath:  /owo/cli 
       hostPath: /etc/owo/cli
     tag: ""
@@ -50,9 +50,9 @@ deployment:
       kafka: api_gateway_host
     secrets:
       docker_hub:
-        name: dockerhub-secret
-        username: username
-        password: password
+        name: owo-secret
+        username: dhusername
+        password: dhpassword
 
 service:
   name: owo-service

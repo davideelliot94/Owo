@@ -17,9 +17,8 @@ export async function mergeSequence(req,res){
 
     const sequenceName = req.body.name;
     const binaries_timestamp = Date.now();
-    const period = req.body.period === undefined || req.body.period === null ? false:req.body.period;
 
-    const result = await fg.getAction(sequenceName);
+    const result = await fg.getAction(sequenceName).catch((result) => res.json("An error occurred"));
     var promises = [];
 
     //CONTROLLO ERRORI
@@ -102,7 +101,7 @@ export async function mergeSequence(req,res){
             return;
         }
 
-        const merged = await utils.merge(funcs,sequenceName,true);
+        const merged = await utils.merge(funcs,sequenceName,binaries_timestamp,true).catch((result) => res.json("An error occurred"));
         res.json({"mex":"Sequence successfully merged!!",
                   "outcome":merged})
         return;
@@ -131,7 +130,7 @@ export async function optimizeSequence(req,res){
     const period = req.body.period === undefined || req.body.period === null ? false:req.body.period;
     const binaries_timestamp = Date.now();
 
-    const result = await fg.getAction(sequenceName);
+    const result = await fg.getAction(sequenceName).catch((result) => res.json("An error occurred"));
     var promises = [];
 
     //CONTROLLO ERRORI
@@ -234,8 +233,8 @@ export async function optimizeSequence(req,res){
             return func;
 
         })
-        const resolvedfuncWithMetrics = await Promise.all(funcWithMetrics);
-        const sequenceMetrics = await fg.getMetricsByActionNameAndPeriod(sequenceName,period);
+        const resolvedfuncWithMetrics = await Promise.all(funcWithMetrics).catch((result)=> res.json("An error occurred"));
+        const sequenceMetrics = await fg.getMetricsByActionNameAndPeriod(sequenceName,period).catch((result)=>{ res.json("an error occurred")});
 
         utils.applyMergePolicies(resolvedfuncWithMetrics,sequenceMetrics,result.limits, async function (analized_funcs) {
 
@@ -255,7 +254,7 @@ export async function optimizeSequence(req,res){
     
                 if(positive >= mergeOutcome.length){
     
-                    await utils.merge(analized_funcs,sequenceName,true)
+                    await utils.merge(analized_funcs,sequenceName,binaries_timestamp,true).catch((result) => res.json("An error occurred"))
                     res.json("Sequence successfully merged!!")
                     return;
                 }
@@ -282,7 +281,7 @@ export async function optimizeSequence(req,res){
                     /**
                      * FUSIONE TOTALE
                      */
-                    await utils.merge( new_configuration[0],sequenceName,true)
+                    await utils.merge( new_configuration[0],sequenceName,binaries_timestamp,true).catch((result) => { res.json("an error occurred ")})
                     res.json("Sequence successfully merged!!")
                     return;
 
@@ -293,22 +292,22 @@ export async function optimizeSequence(req,res){
                      */
 
                     var prom = []
-		     /**
+		            /**
                      * EFFETTUO IL MERGE DELLE SOTTO FUNZIONI
                      */
                     new_configuration.forEach(sub_seq => {
                         if(sub_seq.length > 1){
                             prom.push(
-                                utils.merge(sub_seq,sequenceName,false)
+                                utils.merge(sub_seq,sequenceName,binaries_timestamp,false).catch((result) => { res.json("an error occurred ")})
                             )
                         }else{
                             prom.push(sub_seq[0])
                         }
                     });
 
-                    const resolve_sub_seq_array_parsed = await Promise.all(prom);
+                    const resolve_sub_seq_array_parsed = await Promise.all(prom).catch((result) =>{ res.json("An error occurred")});
 
-			/**
+			        /**
                      * 
                      * CALCOLO I LIMITS PER LA FUNZIONE FINALE CHE VERRÀ CREATA
                      */
@@ -343,7 +342,7 @@ export async function getMetrics(req,res){
     logger.log("/api/v1/metrics/get", "info");
     let p = req.body.period;
     if (p === null || p === undefined) p = "1d";
-    const response = await fg.getMetricsByActionNameAndPeriod(req.body.name, p);
+    const response = await fg.getMetricsByActionNameAndPeriod(req.body.name, p).catch((result) => res.json("An error occurred"));
 
     response.duration = response.duration + " ms";
     response.waitTime = response.waitTime + " ms";
@@ -407,237 +406,4 @@ export async function createActionTest(req,res){
             res.json({"mex":"Action succesfully created","result":result})
         })
     } 
-}
-
-/**
- * TEST REWRITE FILE 
- */
-
-//18102022
-export async function optimizeSequenceTest(req,res){
-    logger.log("/api/v1/action/optimize", "info");
-    var funcs = [];
-
-    if (!Object.keys(req.body).includes("name")) {
-        res.json({"message":"Please provide sequence name"})
-    }
-
-    if(req.body.name === "" || req.body.name === undefined || req.body.name === null){
-        res.json({"message":"Please provide valid sequence name"})
-    }
-
-    const sequenceName = req.body.name;
-    const isWholeMerge = req.body.whole === undefined || req.body.whole === null ? false:req.body.whole;
-    const period = req.body.period === undefined || req.body.period === null ? false:req.body.period;
-    const binaries_timestamp = Date.now();
-
-    const result = await fg.getAction(sequenceName);
-    var promises = [];
-
-    //CONTROLLO ERRORI
-    if (Object.keys(result).includes("error")) {
-        logger.log("Error getting sequence: " + sequenceName, "warn");
-        logger.log(JSON.stringify(result), "warn");
-        res.json(result);
-        return;
-    };
-
-    //CONTROLLO SULL'OTTENUIMENTO DELLA SEQUENZA
-    if(!Object.keys(result).includes("exec")){
-        logger.log("Error getting sequence: " + sequenceName, "warn");
-        logger.log(JSON.stringify(result), "warn");
-        res.json(result);
-        return;
-    }
-
-    //CONTROLLO SE LA ACTION E EFFETTIVAMENTE UNA SEQUENZA
-    if(!Object.keys(result.exec).includes("components")){
-        res.json("Seems like the provided function is not a sequence");
-        return;
-    }
-    
-
-    /**
-     * 
-     * SE NELLA CATENA È RICHIAMATA PIU VOLTE LA STESSA FUNZIONE, 
-     * NE FACCIO IL PARSING UNA SOLA VOLTA
-     */
-
-    let noDuplicatesFunctions = [...new Set(result.exec.components)];
-
-    let configuration = result.exec.components.map(entry =>{
-        var tmp = entry.split('/');
-        return tmp[tmp.length - 1]
-    })
-
-    noDuplicatesFunctions.forEach(funcName => {
-
-        var tmp = funcName.split('/');
-        const nameNoNamespace = tmp[tmp.length - 1]
-        promises.push(
-
-            fg.getAction(nameNoNamespace)
-                .then((result) => {
-
-                    if (Object.keys(result.exec).includes("components")) {
-                        return 0;
-                    }
-
-                    const timestamp = Date.now();
-                    var parsed = fg.parseActionTest(result, timestamp,binaries_timestamp);
-                    return parsed;
-
-                }).catch((error) => {
-                    logger.log(error, "error");
-                    res.json(error);
-                    return -1;
-                })
-        );
-    });
-
-    Promise.all(promises).then((result) => {
-        result.forEach((r) => {
-            funcs.push(r)
-        })
-    }).then(async () => {
-
-        /**
-         * 
-         * CONTROLLO SE CI SONO SOTTOSEQUENZE, IN TAL CASO NON POSSO OTTIMIZZARE
-         */
-
-        let sub_seq_detected = false;
-        let i = 0;
-        for (i; i < funcs.length - 1; i++) {
-            if (funcs[i] == 0) {
-                sub_seq_detected = true;
-                break;
-            }
-        }
-
-        if (sub_seq_detected) {
-            logger.log("Sub-sequence detected", "info")
-            res.json({ mex: "Sub-sequence detected, atm is not possible to optimize sequence containing other sequences!" })
-            return;
-        }
-
-        /**
-         * 
-         * OTTENGO LE METRICHE PER OGNI FUNZIONE
-         */
-
-        const funcWithMetrics = funcs.map(async func => {
-
-            if (period === null) period = '1d';
-            const metricsRaw = await fg.getMetricsByActionNameAndPeriod(func.name,period);
-            func.metrics = metricsRaw;
-            return func;
-
-        })
-        const resolvedfuncWithMetrics = await Promise.all(funcWithMetrics);
-        const sequenceMetrics = await fg.getMetricsByActionNameAndPeriod(sequenceName,period);
-
-        utils.applyMergePolicies(resolvedfuncWithMetrics,sequenceMetrics,result.limits, async function (analized_funcs) {
-
-            /**
-             * CONTROLLO PER VERIFICARE SE IL MERGE SARA TOTALE O PARZIALE
-             */
-
-            if(isWholeMerge){
-                const mergeOutcome = analized_funcs.map(t => {
-                    return t.to_merge
-                })
-    
-                var positive = 0;
-                mergeOutcome.forEach(outcome =>{
-                    if(outcome) positive++;
-                })
-    
-                if(positive >= mergeOutcome.length){
-    
-                    await utils.mergeTest(analized_funcs,sequenceName,true)
-                    res.json({"mex":"Sequence successfully merged!!"})
-                    return;
-                }else{
-                    res.json({"mex":"Sequence can't be optimized!!"})
-                    return;
-                }
-            }else{
-                
-                /**
-                 * se la lunghezza dell'array di merge creato è uguale al numero di funzioni della sequenza
-                 * significa che nessuna funzione è passibile di fusione
-                 */
-                const new_configuration = utils.checkPartialMerges(analized_funcs,configuration);
-
-                if( new_configuration.length === configuration.length){
-                    res.json("Sequence doesn't need to be optimized, if you want you can use ' merge ' command to forcely optimize it")
-                    return
-                }
-
-		        /**
-                 * SE LA NUOVA CONFIGURAZIONE HA LUNGHEZZA 1 SIGNIFICA CHE 
-                 * VERRA CREATA UNA SINGOLA FUNZIONE EFFETTUANDO IL MERGE DI TUTTE 
-                 */
-
-                if( new_configuration.length == 1 ){
-
-                    /**
-                     * FUSIONE TOTALE
-                     */
-                    await utils.mergeTest( new_configuration[0],sequenceName,true)
-                    res.json("Sequence successfully merged!!")
-                    return;
-
-                }else{
-
-                    /**
-                     * FUSIONE PARZIALE 
-                     */
-
-                    var prom = []
-		            /**
-                     * EFFETTUO IL MERGE DELLE SOTTO FUNZIONI
-                     */
-                    new_configuration.forEach(sub_seq => {
-                        if(sub_seq.length > 1){
-                            prom.push(
-                                utils.mergeTest(sub_seq,sequenceName,false)
-                            )
-                        }else{
-                            prom.push(sub_seq[0])
-                        }
-                    });
-
-                    const resolve_sub_seq_array_parsed = await Promise.all(prom);
-
-			        /**
-                     * 
-                     * CALCOLO I LIMITS PER LA FUNZIONE FINALE CHE VERRÀ CREATA
-                     */
-
-                    const final_limit = fg.computeLimit(resolve_sub_seq_array_parsed);
-
-                    var seq_names_array = [];
-                    seq_names_array.push("/_/" + resolve_sub_seq_array_parsed[0].name);
-
-                    for (let l = 1; l < resolve_sub_seq_array_parsed.length -1; l++) {
-
-                        seq_names_array.push("/_/" + resolve_sub_seq_array_parsed[l][0])
-                    }
-
-                    fg.deleteActionCB(sequenceName, function (data) {
-                        //CREA LA NUOVA SEQUENZA
-                        fg.createActionCB(sequenceName, seq_names_array,"sequence", "sequence", final_limit,function (last_result) {
-                            res.json({ "mex": "Functions partially merged","composition":last_result});
-                        });
-                    })
-                }  
-            }
-        })     
-    })
-    .catch(err => {
-        logger.log(err, "WARN")
-        res.json(err);
-    }); 
 }

@@ -10,7 +10,7 @@ export async function simulateSequence(req,res){
     const period = req.body.period === undefined || req.body.period === null || req.body.period === "" ? null:req.body.period;
     const seqOnly = req.body.seqonly === undefined || req.body.seqonly === null ? false:req.body.seqonly;
 
-    const message = await prepareSimulation(sequenceName,optName,period,seqOnly)
+    const message = await prepareSimulation(sequenceName,optName,period,seqOnly).catch((result) => res.json("An error occurred"))
 
     kafka.sendToKafka(message)
 
@@ -27,7 +27,7 @@ export async function simulateOptimization(req,res){
     const sequenceName = req.body.seq;
     var period = req.body.period === undefined || req.body.period === null || req.body.period === "" ? null:req.body.period;
 
-    const message = await prepareOptimizationSimulation(sequenceName,period)
+    const message = await prepareOptimizationSimulation(sequenceName,period).catch((result) => res.json("An error occurred"))
 
     kafka.sendToKafka(message)
 
@@ -53,11 +53,11 @@ export async function compareOptimization(req,res){
         if(req.body.names.length <= 1) res.errored()
     }
 
-    const pre = await fg.getAction(req.body.names[0]) // necessariemanete una sequenza
-    const post = await fg.getAction(req.body.names[1]) // può essere una sequenza
+    const pre = await fg.getAction(req.body.names[0]).catch((result) => res.json("An error occurred")) // necessariemanete una sequenza
+    const post = await fg.getAction(req.body.names[1]).catch((result) => res.json("An error occurred")) // può essere una sequenza
 
   
-    const preMetrics= await fg.getMetricsByActionNameAndPeriod(pre.name,period);
+    const preMetrics= await fg.getMetricsByActionNameAndPeriod(pre.name,period).catch((result) => res.json("An error occurred"));
     //const postMetrics = await fg.getMetricsByActionNameAndPeriod(post,period);
 
     if(!Object.keys(pre.exec).includes("components") ){
@@ -84,10 +84,10 @@ export async function compareOptimization(req,res){
         return await fg.getAction(tmp[tmp.length -1])
     })
 
-    preFunctions = await Promise.all(preFunctions)
-    postFunctions = await Promise.all(postFunctions)
+    preFunctions = await Promise.all(preFunctions).catch((result) => res.json("An error occurred"))
+    postFunctions = await Promise.all(postFunctions).catch((result) => res.json("An error occurred"))
         
-    const messages = await prepareComparison(preFunctions,postFunctions,period,preMetrics,pre.limits);
+    const messages = await prepareComparison(preFunctions,postFunctions,period,preMetrics,pre.limits).catch((result) => res.json("An error occurred"));
     kafka.sendToKafka(messages[0])
     kafka.sendToKafka(messages[1])
 
@@ -197,7 +197,7 @@ async function prepareOptimizationSimulation(sequenceName,p){
         return func;
     })
 
-    const resolvedfuncWithMetrics = await Promise.all(funcWithMetrics);
+    const resolvedfuncWithMetrics = await Promise.all(funcWithMetrics)
 
     let sumDuration = resolvedfuncWithMetrics.reduce((sumDuration,x) => sumDuration = sumDuration + x.metrics.duration)
     let sumInitTime = resolvedfuncWithMetrics.reduce((sumInitTime,x) => sumInitTime = sumInitTime + x.metrics.initTime)
@@ -252,7 +252,7 @@ async function prepareComparison(pre,post,p,preMetrics,limits){
         return func;
     })
 
-    const preWithMetrics = await Promise.all(preWithMetricsRaw);
+    const preWithMetrics = await Promise.all(preWithMetricsRaw)
 
     if(post.length > 1){
         postWithMetricsRaw = pre.map(async po => {
@@ -274,7 +274,7 @@ async function prepareComparison(pre,post,p,preMetrics,limits){
         postWithMetricsRaw.push(func)
     }
 
-    const postWithMetrics = await Promise.all(postWithMetricsRaw);
+    const postWithMetrics = await Promise.all(postWithMetricsRaw)
 
     const preMessage = kafka.buildMessage(preWithMetrics,null,period,limits,preMetrics,false);
     const postMessage = kafka.buildMessage(preWithMetrics,postWithMetrics,period,limits,preMetrics,false)

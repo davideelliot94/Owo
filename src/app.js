@@ -43,9 +43,6 @@ app.post("/api/v1/sequence/merge", handler.mergeSequence);
 
 app.post("/api/v1/sequence/optimize", handler.optimizeSequence);
 
-//17102022
-app.post("/api/v1/sequence/optimize/test/docker", handler.optimizeSequenceTest);
-
 /** 
  * 
  * SIMULATION 

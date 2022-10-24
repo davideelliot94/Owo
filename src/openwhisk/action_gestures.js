@@ -8,6 +8,7 @@ import * as zipgest from "../utils/zip_gestures.cjs"
 import Metric from "../metrics/Metric.js"
 import Limits from "../metrics/Limit.js"
 import Action from "./entity/Action.js"
+import { rejects } from 'assert';
 
 const httpsAgent = conf.HTTPS_AGENT;
 
@@ -180,6 +181,7 @@ function createActionCB(funcName,funcBody,fkind,action_type,limits,callback){
  * @returns 
  */
 function createDockerActionCB(funcName,funcBody,limits,dockerImg,callback){
+
     try {
         (async () => {
             const rawResponse = await fetch('https://'+conf.API_HOST+'/api/v1/namespaces/_/actions/'+funcName+'?overwrite=true', {
@@ -191,14 +193,13 @@ function createDockerActionCB(funcName,funcBody,limits,dockerImg,callback){
               },
               agent: httpsAgent,
               body: JSON.stringify({"namespace":"_","name":funcName,
-                                    "exec":{"kind":fkind,"code":funcBody,"binary":"true"},
+                                    "exec":{"kind":"blackbox","image":dockerImg,"code":funcBody,"binary":"true"},
                                     "annotations":[{"key":"web-export","value":true},{"key":"raw-http","value":false},{"key":"final","value":true}],
                                     "limits":limits.getJSON()})
             }).catch(err =>{
                 logger.log(err,"warn");
             });
             const content = await rawResponse.json();
-            
             logger.log("/api/v1/action/create "+ JSON.stringify(content),"info");
             callback(content);
             
@@ -614,7 +615,7 @@ async function getMetricsByActionNameAndPeriod(fname,period){
         }                  
     })
 
-    const metrics_collect_raw = await Promise.all(metricsRaw);
+    const metrics_collect_raw = await Promise.all(metricsRaw)
     var metrics_collect = {}
     metrics_collect_raw.forEach(metric => {
         if(metric == -1) return -1
@@ -669,6 +670,7 @@ function computeLimit(functionsArray){
         final_limit.timeout:limit.timeout;   
     }
 
+    console.log(final_limit)
     return final_limit;
 }
 
@@ -887,6 +889,8 @@ export async function parseActionTest(element,timestamp,binaries_timestamp){
         if(kind.includes("python")){
 
             let main_func = "main";
+            const main_func_invocation = func.substring(func.indexOf(main_func))
+
             /*
             if (func.indexOf("main") === -1){
                 main_func = "main"
