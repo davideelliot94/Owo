@@ -1,0 +1,37 @@
+{{ if .Values.owo.simulationEnabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-owo-sim
+  labels:
+    app: {{ .Release.Name }}-owo-sim
+spec:
+  replicas: {{ .Values.owo.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-owo-sim
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-owo-sim
+    spec:
+      restartPolicy: "Always"
+      initContainers:
+{{ include "openwhisk.readiness.waitForController" . | indent 6 }}
+      containers:
+      - name: {{ .Values.owo.simulator.image.name }}
+        image: {{ .Values.owo.simulator.image.repository }}
+        volumeMounts:
+        - mountPath: /owosim/config
+          name: config-properties  
+        env:
+        - name: KAFKA_BOOTSTRAP_BROKER
+          valueFrom:
+            configMapKeyRef:
+              name: {{ .Values.owo.deployment.env.cm.name }}
+              key: {{ .Values.owo.deployment.env.cm.kafka }}
+      volumes:
+      - name: config-properties
+        configMap:
+          name: {{ .Values.owo.simulator.name }}-configmap
+{{ end }}

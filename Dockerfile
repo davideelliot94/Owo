@@ -4,13 +4,16 @@ ENV API_HOST=""
 ENV METRICS_ENDPOINT=""
 ENV ENVIRONMENT=""
 
-COPY . /faas-optimizer
+COPY . /owo
 
-WORKDIR /faas-optimizer/src
+RUN rm -R /owo/kubes
 
-VOLUME  "/owo/cli" 
+WORKDIR /owo/src
+
+#VOLUME  "../cli" 
 
 RUN npm install --production
+RUN apt-get update
 RUN apt-get install docker.io -y
 
 EXPOSE 4000

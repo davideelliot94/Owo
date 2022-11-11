@@ -1,19 +1,20 @@
 replicaCount: 1
+simulationEnabled: true
 name: owo
 configMap:
   name: owo-configmap
   data:
     api_gateway_host: "owdev-nginx.openwhisk.svc.cluster.local"
     prometheus_host: "owdev-prometheus-server.openwhisk.svc.cluster.local"
-    kafka_host: "owdev-kafka.openwhisk.svc.cluster.local"
+    kafka_host: "owdev-kafka.openwhisk.svc.cluster.local:9092"
 
 secret:
   type: Opaque
   docker_hub:
     name: owo-secret
     data:
-      username: ZGF2aWRlCg==
-      password: cGFzc3dvcmQK
+      username: ZGF2aWRlZWxsaW90Cg==
+      password: cG5NRkduLjk0RG9ja2VySHViCg==
 
 tls:
   type: kubernetes.io/tls
@@ -22,16 +23,16 @@ tls:
    key: YmFzZTY0Cg==
 
 deployment:
-  name: owo-deployment
+  name: owo
   image:
     name: owo
     label: owo
-    repository: davideelliot/faas-optimizer:test
+    repository: davideelliot/owo:0.1.5
     pullPolicy: ifNotPresent
     volumes:
       volumeName: owovolume
       mountPath:  /owo/cli 
-      hostPath: /etc/owo/cli
+      hostPath: /home/master/owo/cli
     tag: ""
     resources:
       requests:
@@ -46,13 +47,25 @@ deployment:
     cm: 
       name: owo-configmap
       apiHost: api_gateway_host
-      prometheus: api_gateway_host
-      kafka: api_gateway_host
+      prometheus: prometheus_host
+      kafka: kafka_host
     secrets:
       docker_hub:
         name: owo-secret
         username: dhusername
         password: dhpassword
+
+simulator:
+  name: owo-sim
+  image:
+    name: owo-sim
+    label: owo-sim
+    repository: davideelliot/owo-sim:0.1.5
+    pullPolicy: ifNotPresent
+  env:
+    cm: 
+      name: owo-sim-configmap
+      config: config.propeties
 
 service:
   name: owo-service

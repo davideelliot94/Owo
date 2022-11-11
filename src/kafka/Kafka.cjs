@@ -22,6 +22,7 @@ const kafka = new Kafka({
 })
 
 const admin = kafka.admin();
+//const producer = kafka.producer();
 const producer = kafka.producer({createPartitioner: Partitioners.LegacyPartitioner});
 const consumer = kafka.consumer({ groupId: "default" });
 
@@ -38,7 +39,7 @@ const consumer = kafka.consumer({ groupId: "default" });
         const listResolved = await Promise.resolve(list)
         if(!listResolved.includes(topicC) && !listResolved.includes(topicS) ){
             await admin.createTopics({
-                topics: [ { topic:topicS} , {topic: topicC} ],
+                topics: [ { topic:topicS ,numPartitions: 1, replicationFactor: 1 } , {topic: topicC, numPartitions: 1, replicationFactor: 1 } ],
                 waitForLeaders: true,
             })
         }

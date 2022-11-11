@@ -1,0 +1,28 @@
+{{ if .Values.simulationEnabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.simulator.name }}-deployment
+  labels:
+    app: {{ .Values.simulator.image.label }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.simulator.image.label }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.simulator.image.label }}
+    spec:
+      containers:
+      - name: {{ .Values.simulator.image.name }}
+        image: {{ .Values.simulator.image.repository }}
+        volumeMounts:
+        - mountPath: /owosim/config
+          name: config-properties  
+      volumes:
+      - name: config-properties
+        configMap:
+          name: {{ .Values.simulator.name }}-configmap
+{{ end }}

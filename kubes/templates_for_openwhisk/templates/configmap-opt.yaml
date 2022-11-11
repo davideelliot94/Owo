@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.owo.name }}-configmap
+data:
+  api_gateway_host: {{ include "openwhisk.nginx_host" . }}
+  prometheus_host: "{{ include "openwhisk.prometheus_server_host" . }}:9090/api/v1/query?"
+  kafka_host: {{ include "openwhisk.kafka_connect" . }}

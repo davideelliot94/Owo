@@ -45,11 +45,14 @@
             "coldStarts":["openwhisk_action_coldStarts_total"]
         },
         "system":{
-            "limits":{
-                "memory":2048, 
-                "timeout":60000, 
-                "concurrency":1,
-                "logs":10
+            "default":{
+                "limits":{
+                    "memory":2048, 
+                    "timeout":60000, 
+                    "concurrency":1,
+                    "logs":10
+                },
+                "codeSize":48
             },
             "limits_apache":{
                 "codeSize":{

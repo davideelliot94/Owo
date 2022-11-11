@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-owo
+  labels:
+    app: {{ .Release.Name }}-owo
+spec:
+  replicas: {{ .Values.owo.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-owo
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-owo
+    spec:
+      restartPolicy: "Always"
+      initContainers:
+{{ include "openwhisk.readiness.waitForController" . | indent 6 }}
+      containers:
+      - name: {{ .Values.owo.deployment.image.name }}
+        image: {{ .Values.owo.deployment.image.repository }}
+        volumeMounts:
+        - mountPath: {{ .Values.owo.deployment.image.volumes.mountPath }}
+          name: {{ .Values.owo.deployment.image.volumes.volumeName }}
+        resources:
+          requests:
+            memory: {{ .Values.owo.deployment.image.resources.requests.memory }}
+            cpu: {{ .Values.owo.deployment.image.resources.requests.cpu }}
+          limits:
+            memory: {{ .Values.owo.deployment.image.resources.limits.memory }}
+            cpu: {{ .Values.owo.deployment.image.resources.limits.cpu }}
+        env:
+        - name: API_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: {{ .Values.owo.deployment.env.cm.name }}
+              key: {{ .Values.owo.deployment.env.cm.apiHost }}
+        - name: METRICS_ENDPOINT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ .Values.owo.deployment.env.cm.name }}
+              key: {{ .Values.owo.deployment.env.cm.prometheus }}
+        - name: KAFKA_BOOTSTRAP_BROKER
+          valueFrom:
+            configMapKeyRef:
+              name: {{ .Values.owo.deployment.env.cm.name }}
+              key: {{ .Values.owo.deployment.env.cm.kafka }}
+        - name: DOCKER_HUB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.owo.deployment.env.secrets.docker_hub.name }}
+              key: {{ .Values.owo.deployment.env.secrets.docker_hub.username }}
+        - name: DOCKER_HUB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.owo.deployment.env.secrets.docker_hub.name }}
+              key: {{ .Values.owo.deployment.env.secrets.docker_hub.password }}
+        ports:
+        - containerPort: {{ .Values.owo.deployment.image.ports.containerPort }}
+      volumes:
+      - name: {{ .Values.owo.deployment.image.volumes.volumeName }}
+        hostPath:
+          path: {{ .Values.owo.deployment.image.volumes.hostPath }}

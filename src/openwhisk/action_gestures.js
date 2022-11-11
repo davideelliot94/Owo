@@ -333,8 +333,8 @@ async function parseAction(element,timestamp,binaries_timestamp){
             fs.mkdirSync(binaries+ binaries_timestamp, { recursive: true });
 
             //ROUTINE PER LEGGERE IL CONTENUTO DI TUTTI I FILE 
-            utils.copyAllFiles("/src/utils/zip_workdir/extracted/"+timestamp,"/src/utils/binaries/"+binaries_timestamp,pack.main)
-            //const file_list =utils.copyAllFilesNew("/src/utils/zip_workdir/extracted/"+timestamp,"/src/utils/binaries/"+binaries_timestamp,pack.main)
+            //utils.copyAllFiles("/src/utils/zip_workdir/extracted/"+timestamp,"/src/utils/binaries/"+binaries_timestamp,pack.main)
+            const file_list =utils.copyAllFiles("/src/utils/zip_workdir/extracted/"+timestamp,"/src/utils/binaries/"+binaries_timestamp,pack.main)
 
             zipgest.cleanDirs("/zip_workdir/extracted/"+timestamp);
 
@@ -381,15 +381,15 @@ async function parseAction(element,timestamp,binaries_timestamp){
                 action.asynch = true;
             }
 
-            /*
+            
             if(file_list.length > 0){
                 file_list.forEach(lf=>{
 
                 tmp.code = tmp.code.replace(lf.split("-")[0]+lf.split("-")[1],lf)
-            })
+                })
             }
             
-            */
+            
 
             return action;
 
@@ -408,7 +408,7 @@ async function parseAction(element,timestamp,binaries_timestamp){
             fs.mkdirSync(binaries+ binaries_timestamp, { recursive: true });
 
             //ROUTINE PER LEGGERE IL CONTENUTO DI TUTTI I FILE
-            utils.copyAllFiles("/src/utils/zip_workdir/extracted/"+timestamp+"/","/src/utils/binaries/"+binaries_timestamp+"/","__main__.py")
+            const file_list = utils.copyAllFiles("/src/utils/zip_workdir/extracted/"+timestamp+"/","/src/utils/binaries/"+binaries_timestamp+"/","__main__.py")
             zipgest.cleanDirs("/zip_workdir/extracted/"+timestamp);
 
 
@@ -444,13 +444,20 @@ async function parseAction(element,timestamp,binaries_timestamp){
                                 codeSize
                             )
 
-            /*
-            if(file_list.length > 0){
+            
+            /*if(file_list.length > 0){
                 file_list.forEach(lf=>{
                     tmp.code = tmp.code.replace(" "+lf.split("-")[0]+" "," "+lf+" ")
                 })
+            }*/
+
+            if(file_list.length > 0){
+                file_list.forEach(lf=>{
+
+                tmp.code = tmp.code.replace(lf.split("-")[0]+lf.split("-")[1],lf)
+                })
             }
-            */
+            
 
             if(action.code.includes("async ") || action.code.includes(" await ")){
                 action.asynch = true;
@@ -513,7 +520,7 @@ async function parseAction(element,timestamp,binaries_timestamp){
 
         //devo controllare come funziona per il main se python
         if(kind.includes("python")){
-
+/*
             let main_func;
 
             if (func.indexOf("main") === -1){
@@ -521,7 +528,11 @@ async function parseAction(element,timestamp,binaries_timestamp){
                 main_func = "main"
             }else{
                 main_func = "main"
-            }
+            }*/
+
+            const main_func = "main";
+
+            const main_func_invocation = func.substring(func.indexOf(main_func));
 
             
             var limit = new Limits(
@@ -664,7 +675,8 @@ function computeLimit(functionsArray){
         final_limit.logs = final_limit.logs >= limit.logs ? 
         final_limit.logs:limit.logs;
 
-        final_limit.memory = final_limit.memory + limit.memory >= conf.LIMITS.memory ? conf.LIMITS.memory :final_limit.memory + limit.memory;
+        final_limit.memory = final_limit.memory + limit.memory >= conf.LIMITS.limits.memory ? conf.LIMITS.limits.memory :final_limit.memory + limit.memory;
+        //final_limit.memory = limit.memory > final_limit.memory ? limit.memory:final_limit.memory;
 
         final_limit.timeout = final_limit.timeout >= limit.timeout ? 
         final_limit.timeout:limit.timeout;   

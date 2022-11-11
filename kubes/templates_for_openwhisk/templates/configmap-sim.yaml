@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.owo.simulator.name }}-configmap
+data:
+  config.properties: |
+    workload.exponential.default.rate = 3.0
+
+    simulator.logger.type = none
+
+    invoker.default.cpus = 4
+    invoker.default.mem.mb = 4096
+    invoker.warm.timeout.sec = 60
+    invoker.warm.timeout.deterministic = true
+    invoker.abort.initializations = false
+    invoker.reschedule.coldstarts = false
+    coldstart.duration.erlang.phases = 4
+
+    scheduler.queueing.enabled = false
+
+    statistics.percentiles.enabled = true
+    statistics.resptimes.dumpfile = out
+
+    kafka.topic.c = "TEST1"
+    kafka.topic.s = "TEST2"
+    kafka.broker = {{ include "openwhisk.kafka_connect" . }}

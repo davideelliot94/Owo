@@ -50,20 +50,18 @@ async function merge(functions_to_merge,seq_name,binaries_timestamp,whole){
             // le functions hanno tutte le stessa Kind (linguaggio) posso fonderle come plain text
             if (binary_count > 0) {
                 // almeno una binaria 
-                mergeFuncsBinarySameLangCBTest(funcs, seq_name,binaries_timestamp, function (timestamp_folder) {
-                    zipgest.zipDirLocalCB("binaries/" + timestamp_folder, (file) => {
-                        const size = zipgest.getFileSize("binaries/" + timestamp_folder+ ".zip");
-                        const mb = 1024000
 
-                        if(size/mb >= 35){
-                            return "Arctifact too big, sequence can't be optimized"
-                        }else{
-                            fg.createActionCB(seq_name, file, prevKind,"binary",merged_seq_limits, function (result) {
-                                //zipgest.cleanDirs("/binaries/" + timestamp_folder);
-                                //zipgest.cleanDirs("/binaries/" + timestamp_folder + ".zip");
-                                resolve( [seq_name,merged_seq_limits,result]);
-                            });
-                        }
+                // PROBLEMA DEL binary_timestamp SE STO FACENDO UNA FUSIONE PARZIALE 
+
+                mergeFuncsBinarySameLangCB(funcs, seq_name,binaries_timestamp, function (timestamp_folder) {
+                    zipgest.zipDirLocalCB("binaries/" + timestamp_folder, (file) => {
+
+                        fg.createActionCB(seq_name, file, prevKind,"binary",merged_seq_limits, function (result) {
+                            zipgest.cleanDirs("/binaries/" + timestamp_folder);
+                            zipgest.cleanDirs("/binaries/" + timestamp_folder + ".zip");
+                            resolve( [seq_name,merged_seq_limits,result]);
+                        });
+                        
                     })
                 })
             } else {
@@ -84,43 +82,38 @@ async function merge(functions_to_merge,seq_name,binaries_timestamp,whole){
             }        
         } else {
 
+            // PROBLEMA DEL binary_timestamp SE STO FACENDO UNA FUSIONE PARZIALE
             mergeDiffLangActions(funcs, seq_name,binaries_timestamp, function (timestamp_folder,docker_img) {
                 zipgest.zipDirLocalCB("binaries/" + timestamp_folder, (file) => {
-                    const size = zipgest.getFileSize("binaries/" + timestamp_folder+ ".zip");
-                    const mb = 1024000
-
-                    if(size/mb >= 35){
-                        return "Arctifact too big, sequence can't be optimized"
-                    }else{
-                        if(whole){
-                            fg.deleteActionCB(seq_name, function (data) {
-                                fg.createDockerActionCB(seq_name, file,merged_seq_limits,docker_img, function (result) {
-                                    if(Object.keys(result).includes("error")){
-                                        reject(result)
-                                    }
-                                    //DEVO CONTROLLARE TUTTE LE VOLTE CHE CREO UNA ACTION SE IL RISULTATO CONTIENE "error"
-                                    // esempio
-                                    //{"code":"CEg5yjaCKcJlAAIAXvJwfp0ZHqCQLoLQ","error":"The request content was malformed:\n'image' must be a string defined in 'exec' for 'blackbox' actions"}
-                                    
-                                    //zipgest.cleanDirs("/binaries/" + timestamp_folder);
-                                    //zipgest.cleanDirs("/binaries/" + timestamp_folder + ".zip");
-                                    resolve( [seq_name,merged_seq_limits,result]);
-                                });
-                            })
-                        }else{
-                            fg.createDockerActionCB(seq_name, file,merged_seq_limits,docker_img, function (result) {      
-                                //zipgest.cleanDirs("/binaries/" + timestamp_folder);
-                                //zipgest.cleanDirs("/binaries/" + timestamp_folder + ".zip");
+                    
+                    if(whole){
+                        fg.deleteActionCB(seq_name, function (data) {
+                            fg.createDockerActionCB(seq_name, file,merged_seq_limits,docker_img, function (result) {
+                                if(Object.keys(result).includes("error")){
+                                    reject(result)
+                                }
+                                //DEVO CONTROLLARE TUTTE LE VOLTE CHE CREO UNA ACTION SE IL RISULTATO CONTIENE "error"
+                                // esempio
+                                //{"code":"CEg5yjaCKcJlAAIAXvJwfp0ZHqCQLoLQ","error":"The request content was malformed:\n'image' must be a string defined in 'exec' for 'blackbox' actions"}
+                                
+                                zipgest.cleanDirs("/binaries/" + timestamp_folder);
+                                zipgest.cleanDirs("/binaries/" + timestamp_folder + ".zip");
                                 resolve( [seq_name,merged_seq_limits,result]);
-                            }); 
-                        }   
-                    }                               
+                            });
+                        })
+                    }else{
+                        fg.createDockerActionCB(seq_name, file,merged_seq_limits,docker_img, function (result) {      
+                            zipgest.cleanDirs("/binaries/" + timestamp_folder);
+                            zipgest.cleanDirs("/binaries/" + timestamp_folder + ".zip");
+                            resolve( [seq_name,merged_seq_limits,result]);
+                        }); 
+                    }   
+                                                 
                 })
             });        
         }
     });
 }
-
 /**
  * 
  * @param {Array of Action classes} funcs 
@@ -329,365 +322,6 @@ function mergeFuncsBinarySameLangCB(funcs,seqName,binaries_timestamp,callback){
     callback(binaries_timestamp);
 
 }
-
-/**
- * 
- * @param {Array of Action classes} funcs 
- * @param {String} seqName 
- * @param {String} binaries_timestamp 
- * @param {*} callback 
- */
-function mergeFuncsBinarySameLangCBTest(funcs,seqName,binaries_timestamp,callback){
-
-
-    /**
-     * SUPPORTED LANGS:
-        -NODEJS
-        -PYTHON
-    */
-
-    logger.log("Merging same lang actions to binary","info");
-    const fkind = funcs[0].kind;
-    if(fkind.includes("nodejs")){
-        //IF NODEJS
-
-        var imports = "";
-        var dependecies = {}
-        var param = funcs[0].param;
-        const binaries = path.join(__dirname,"src/utils/binaries/");
-        //fs.mkdirSync(binaries+ timestamp, { recursive: true });
-        
-        //FOR LOOP PER SEGNARE TUTTI GLI IMPORT
-        var nasync = 0
-        funcs.forEach(f => {
-            if(f.asynch){
-                nasync++
-            }
-            if(f.binary){
-                var lines = f.code.split(os.EOL);
-                var new_code = ""
-                lines.forEach(line => {
-                    if(line.includes("import ") || line.includes("require(")){
-                        // la riga contiene un import
-
-                        /**
-                         * 
-                         * E SE UNO USA I REQUIRE E IMPORT INSIEME??
-                         */
-                        
-                        imports = imports.concat(line).concat("\n");
-
-                    }else{
-                        if(!line.includes("exports.main")){
-                            new_code = new_code.concat(line).concat("\n");
-                        }
-                        
-                    }
-                    
-                })
-                //recupero le corrette dipendenze
-                if(f.dependecies != "") Object.assign(dependecies,f.dependecies);
-                f.code = new_code;
-            }
-            
-        });
-
-        const importArray = imports.split(os.EOL);
-        var uniqImports = [...new Set(importArray)];
-        var importsString = "";
-        if(uniqImports.length > 0){
-            uniqImports.forEach(imp =>{
-                importsString = importsString.concat(imp+"\n")
-            })
-        }
-        var wrappedFunc = nasync  > 0 ? importsString.concat("async function main("+param+") {\n"):importsString.concat("function main("+param+") {\n");
-        
-        const prevFuncs = []
-        funcs.forEach(f => {
-            if(!prevFuncs.includes(f.name)) wrappedFunc = wrappedFunc.concat(f.code).concat("\n");
-            prevFuncs.push(f.name)   
-        });
-        
-
-        funcs.forEach((f,i) => {
-            if(i == funcs.length -1){
-                if(f.asynch){
-                    wrappedFunc = wrappedFunc.concat("return await ").concat(f.invocation).concat(param+");\n");
-                }else{
-                    wrappedFunc = wrappedFunc.concat("return ").concat(f.invocation).concat(param+");\n");
-                }
-            }
-            else{
-                if(f.asynch){
-                    wrappedFunc = wrappedFunc.concat("var "+f.name+"Res"+i+" = await ").concat(f.invocation).concat(param+");\n");
-                }else{
-                    wrappedFunc = wrappedFunc.concat("var "+f.name+"Res"+i+" = ").concat(f.invocation).concat(param+");\n");
-                }
-    
-                param = f.name+"Res"+i;
-                
-            }
-        });
-        wrappedFunc = wrappedFunc.concat("}").concat("exports.main = main;\n");
-
-        let buff = Buffer.from(wrappedFunc, 'utf8');
-        var pjraw = {
-            "name": seqName,
-            "version": "1.0.0",
-            "description": "An action written as an npm package.",
-            "main": "index.js",
-            "author": "FaaS-Optimizer",
-            "license": "Apache-2.0",
-            "dependencies": dependecies
-        };
-        let pj = Buffer.from(JSON.stringify(pjraw),"utf8");
-        
-        fs.writeFileSync(binaries+ binaries_timestamp + '/package.json', pj,{encoding: "utf8"});
-        fs.writeFileSync(binaries+ binaries_timestamp + '/index.js', buff,{encoding: "utf8"});
-
-        //CICLO PER SCRIVERE TUTTI GLI ALTRI FILES SE CE NE SONO
-
-    }
-    if(fkind.includes("python")){
-        //IF PYTHON
-    
-
-        var imports = "";
-        var param = funcs[0].param;
-        const binaries = path.join(__dirname,"src/utils/binaries/");
-        //fs.mkdirSync(binaries+ timestamp, { recursive: true });
-        
-        //FOR LOOP PER SEGNARE TUTTI GLI IMPORT
-        var nasync = 0
-
-        funcs.forEach(f => {
-            if(f.asynch){
-                nasync++
-            }
-            if(f.binary){
-                var lines = f.code.split(os.EOL);
-                var new_code = ""
-                lines.forEach(line => {
-                    if(line.includes("import ")){
-                        // la riga contiene un import
-                        
-                        imports = imports.concat(line).concat("\n");
-                    }else{
-                        new_code = new_code.concat(line+"\n")                                   
-                    }
-                    
-                })
-                f.code = new_code;
-            }
-            
-        });
-
-        const importArray = imports.split(os.EOL);
-        var uniqImports = [...new Set(importArray)];
-        var importsString = "";
-        if(uniqImports.length > 0){
-            uniqImports.forEach(imp =>{
-                importsString = importsString.concat(imp+"\n")
-            })
-        }
-        var wrappedFunc = nasync  > 0 ? importsString.concat("async def main("+param+"):\n"):importsString.concat("def main("+param+"):\n");
-        
-        const prevFuncs = []
-        funcs.forEach(f => {
-            if(!prevFuncs.includes(f.name)){
-                var parsed_code = "";
-                var flines = f.code.split(os.EOL);
-                flines.forEach( line => {
-                    parsed_code = parsed_code.concat("\t").concat(line).concat("\n")
-                })
-                wrappedFunc = wrappedFunc.concat(parsed_code);
-            }       
-            prevFuncs.push(f.name);
-        });
-        
-
-        funcs.forEach((f,i) => {
-            if(i == funcs.length -1){
-
-                if(f.asynch){
-                    wrappedFunc = wrappedFunc.concat("\treturn await ").concat(f.invocation).concat(param+")\n");
-                }else{
-                    wrappedFunc = wrappedFunc.concat("\treturn ").concat(f.invocation).concat(param+")\n");
-                }       
-            }
-            else{
-
-                if(f.asynch){
-                    wrappedFunc = wrappedFunc.concat("\t"+f.name+"Res"+i+" = await ").concat(f.invocation).concat(param+")\n");
-                }else{
-                    wrappedFunc = wrappedFunc.concat("\t"+f.name+"Res"+i+" = ").concat(f.invocation).concat(param+")\n");
-                }
-                
-                //wrappedFunc = wrappedFunc.concat("\t"+f.name+"Res = ").concat(f.invocation).concat(param+")\n");
-                param = f.name+"Res"+i;
-                
-            }
-        });
-
-        let buff = Buffer.from(wrappedFunc, 'utf8');
-        fs.writeFileSync(binaries+ binaries_timestamp + '/__main__.py', buff,{encoding: "utf8"});
-
-        //CICLO PER SCRIVERE TUTTI GLI ALTRI FILES SE CE NE SONO
-
-    }    
-    callback(binaries_timestamp);
-
-}
-
-/**
- * 
- * @param {*} funcs 
- * @param {*} seqName 
- * @param {*} binaries_timestamp 
- * @param {*} callback 
- */
-function mergeFuncsDiffLangPlainTextBinary(funcs,seqName,binaries_timestamp,callback){
-
-    /**
-     * MERGE DI DUE FUNZIONI DI LINGUAGGIO DIVERSO (non binarie) IN UNA FUNZIONE BINARIA NODEJS
-     */
-
-    logger.log("Merging actions","info");
-
-    var imports = "";
-    var dependecies = {}
-    const import_spawn = "const {execSync} = require('child_process');\n"
-
-    var param = funcs[0].param;
-    const binaries = path.join(__dirname,"src/utils/binaries/");
-    fs.mkdirSync(binaries+ binaries_timestamp, { recursive: true });
-    
-    var wrappedFunc = import_spawn.concat("function main("+param+") {\n");
-
-    const prevFuncs = []
-    
-    funcs.forEach(f => {
-
-        if(!prevFuncs.includes(f.name)){
-            if(!f.kind.includes("nodejs")){
-
-                wrappedFunc = wrappedFunc.concat("\n");
-                wrappedFunc = wrappedFunc.concat("function "+f.invocation+f.param+"){\n\n");
-                // qua va la roba per il python script e la modifica del python script
-                if(f.kind.includes("python")){
-                    const fileName = f.kind.split(":")[0]+Date.now()+".py";
-                    //ATTIVA QUESTO PER PROVARE A VEDERE SE NON REINSTALLA PYTHON MILLE
-                    //wrappedFunc = wrappedFunc.concat("execSync('if [ $( python3 --version | grep -c \"Python \") -eq -1 ]; then apt-get install python3; fi');\n");
-                    wrappedFunc = wrappedFunc.concat("execSync('apt-get install python3');\n");
-                    wrappedFunc = wrappedFunc.concat("return JSON.parse(execSync(\"python3 "+fileName+" '\"+JSON.stringify("+f.param+")+\"'\").toString().replace(/'/g,'\"'));\n}\n")
-                    
-                    var codeArray = f.code.split(os.EOL);
-                    var newcode = "";
-                    let linecount = 0;
-                    codeArray.forEach(line => {
-                        if(linecount == 0){
-                            newcode = "import sys\nimport json\n";
-                            linecount++;
-                        }
-                        if(line.includes("print(")){
-                            newcode = newcode.concat("#").concat(line).concat("\n");
-                        }
-                        else{
-                            if(line.includes("return")){
-                                line = line.replace("return ","print(");
-                                newcode = newcode.concat(line).concat(")");
-                                newcode = newcode.concat("\n").concat(f.invocation).concat("json.loads(sys.argv[1]))\n") // dovrei vedere la funzione come si chiama
-                            }else{
-                                newcode = newcode.concat(line).concat("\n");
-                            }
-                        }   
-                    });  
-                    let buff = Buffer.from(newcode, 'utf8');
-
-                    fs.writeFileSync(binaries + binaries_timestamp +"/"+ fileName, buff,{encoding: "utf8"});
-                }
-
-            }else{
-                if(f.binary){
-                    var lines = f.code.split(os.EOL);
-                    var new_code = ""
-                    lines.forEach(line => {
-                        if(line.includes("import ") || line.includes("require(")){
-                            // la riga contiene un import
-                            /**
-                             * 
-                             * E SE UNO USA I REQUIRE E IMPORT INSIEME??
-                             */
-                            
-                            imports = imports.concat(line).concat("\n");
-                        }else{
-                            if(!line.includes("exports.main")){
-                                new_code = new_code.concat(line)
-                            }                       
-                        }   
-                    })
-                    //recupero le corrette dipendenze
-                    if(f.dependecies != "") Object.assign(dependecies,f.dependecies);
-                    f.code = new_code;
-                }         
-
-                wrappedFunc = wrappedFunc.concat(f.code).concat("\n");
-            }
-        }
-        prevFuncs.push(f.name)
-    });
-
-    var importArray = imports.split(os.EOL);
-    var uniqImports = [...new Set(importArray)];
-    var importsString = "";
-    if(uniqImports.length > 0){
-        uniqImports.forEach(imp =>{
-            importsString = importsString.concat(imp+"\n")
-        })
-    }
-    
-    Object.assign(dependecies,{"child_process": "latest"})
-    var wrappedFunc = importsString.concat(wrappedFunc);    
-
-    funcs.forEach((f,i) => {
-        if(i == funcs.length -1){     
-            if(f.asynch)  {
-                wrappedFunc = wrappedFunc.concat("return await ").concat(f.invocation).concat(param+");\n");
-
-            }else{
-                wrappedFunc = wrappedFunc.concat("return ").concat(f.invocation).concat(param+");\n");
-            }
-        }
-        else{
-            if(f.asynch)  {
-                wrappedFunc = wrappedFunc.concat("var "+f.name+"Res"+i+" await = ").concat(f.invocation).concat(param+");\n");
-
-            }else{
-                wrappedFunc = wrappedFunc.concat("var "+f.name+"Res"+i+" = ").concat(f.invocation).concat(param+");\n");
-            }
-            param = f.name+"Res"+i;         
-        }
-    });
-    wrappedFunc = wrappedFunc.concat("}\n").concat("exports.main = main;\n");
-
-    let buff = Buffer.from(wrappedFunc, 'utf8');
-    var pjraw = {
-        "name": seqName,
-        "version": "1.0.0",
-        "description": "An action written as an npm package.",
-        "main": "index.js",
-        "author": "FaaS-Optimizer",
-        "license": "Apache-2.0",
-        "dependencies": dependecies
-    };
-    let pj = Buffer.from(JSON.stringify(pjraw),"utf8");
-    
-    fs.writeFileSync(binaries+ binaries_timestamp + '/package.json', pj,{encoding: "utf8"});
-    fs.writeFileSync(binaries+ binaries_timestamp + '/index.js', buff,{encoding: "utf8"});
-
-    callback(binaries_timestamp);
-}
-
 /**
  * 
  * @param {*} funcs 
@@ -1088,110 +722,164 @@ function copyAllFiles(extracted,binaries,main_name){
  * 
  * @param {*} funcs_with_metrics 
  * @param {*} sequence_metrics 
- * @param {*} sequence_limits 
+ * @param {*} seqLen 
+ * @param {*} whole 
  * @param {*} callback 
  */
-function applyMergePolicies(funcs_with_metrics,sequence_metrics,sequence_limits,callback){
-    
-        /*      
-           IMPORTANTE, SE LE FUINZIONI HANNO LO STESSO NOME POTREI NON DOVERLE FONDERLE, PERCHÈ UTILIZZANO LO STESSO CONTAINER FORSE DIPENDE DAL PARALLELISMO
-           
+function applyMergePolicies(funcs_with_metrics,sequence_metrics,seqLen,whole,callback){
 
-           DEVO VERIFICARE QUANTO LE ACTIONS VENGONO INVOCATE AL DI FUORI DEL WORKFLOW, perchè? 
+    let isToMerge = false;
 
-           SE NEL WORKFLOW VENGONO INVOCATE TANTE VOLTE POTREI FAR AUMENTARE IL LORO NUMERO DI COLD STARTS RIDUCENDONE NOTEVOLMENTE LE PRESTAZIONI
-   
-
-           BISOGNA CONSIDERARE ANCHE CHE SE LA SOMMA DELLE DURATION DELLE ACTION SUPERA IL TIMEOUT DI SISTEMA MASSIMO, 
-           ALLORA quasi SICURAMENTE NON POSSO FARE IL MERGE
-   
-        */
-/*
-        const maxPossibleDuration = sequence_limits.timeout;
-        const depth = funcs_with_metrics.length;
-        const depthImpact = depth >= 10 ? 2:(depth >= 7 ? 1:0);*/ // 0 -> less than 7 , 1 -> in 7 - 10 , 2 -> depth > 10
-
-
-       /**
-        * 
-        * SE LE OCCURRENCIES DI UNA FUNZIONE SONO > 1 MA NON SONO TUTTE CONSECUTIVE, POTREI PERNSARE DI LASCIARLE COME SONO, AVRANNO COLD START BASSI
-        * ED IMPATTERANNO POCO, 
-        * MA SE LE OCC0RRENZE DELLA FUNZOONE SONO TUTTE CONSECUTIVE, POTRE  COMUNQUE OENBSARE DI FARE IL MERGE
-        * 
-        * di base nuova regole, se occurrencies > 1 e la proporzione occurrencies/lunghezza seq è di un certo tipo, non le fondo
-        */
-   
-   
-       /**
-        * CONTROLLO LA PROFONDITA DELLA SEQUENCE 
-        * 
-        * LA LUNGHEZZA DELLA SEQUENZA INCIDE MOLTO SULLA SUA LATENZA COMPLESSIVA:
-        * 
-        * VEDI COLD START CASCADING
-        * VEDI IMPATTO DELLA COND ACTION
-        */
-
-
-
-
-
-
-
-
-
-
-
-        /*
-        var sequenceDuration = 0;
-        var sequenceWaitTime = 0;
-        var sequenceLatency = 0; // duration + waittime
-        var coldStartsRate = 0;
-        var coldStartAvgDuration = 0;
-
-        const depth = funcs_with_metrics.length;
-        const depthImpact = depth >= 10 ? 2:(depth >= 7 ? 1:0); // 0 -> less than 7 , 1 -> in 7 - 10 , 2 -> depth > 10
-   
-        funcs_with_metrics.forEach(f =>{
-   
-            //definisce se duration è minore dell'initTime 
-            const isDurationLTIT = f.metrics.duration < f.metrics.initTime ? true:false;
-            //definisce se duration è minore del waitTime 
-            const isDurationLTWT = f.metrics.duration < f.metrics.waitTime ? true:false;
-
-            const occurrencies = f.occurrencies
-
-            //definisce se il tasso di coldstarts è alto 
-            let ishighCsRate = false;
-
-            if(f.metrics.coldStarts > 0)  {
-                coldStartAvgDuration += f.metrics.waitTime;
-                const thisColdStartsRate = f.metrics.coldStarts/f.metrics.activations;
-
-                if(thisColdStartsRate > 0.5){
-                    ishighCsRate = true;
-                }
-            }
-
-
-
-            const csImpact = f.metrics.waitTime/f.metrics.duration;
-
-
-            //controllo da sistemare sull'impatto del coldstart, di quanti ordini di misura WT è maggiore di duration? 
-            const isHighCsImpact = csImpact > 100 ? true:false;
-   
-            sequenceDuration += f.metrics.duration + f.metrics.waitTime;
-   
-            //f.to_merge = durWait & isAsynch & cs
-           
-       })*/
-
-    funcs_with_metrics.forEach(f=>{
-        f.to_merge = true
+    /**
+     * INTRA ACTIONS ANALISIS
+     */
+    const p = 2000;
+    const condActionDuration = sequence_metrics.duration;
+    let finalCodeSize = 0;
+    let finalMemRequirement = 0;
+    let totalDuration = 0;
+    let totalWaitTime = 0;
+    let totalInitTime = 0;
+    funcs_with_metrics.forEach(fm => {
+        finalCodeSize = finalCodeSize + fm.code_size;
+        finalMemRequirement = finalMemRequirement + fm.limits.memory;
+        totalWaitTime = totalWaitTime + fm.metrics.waitTime;
+        totalInitTime = totalInitTime + fm.metrics.initTime;
+        totalDuration = totalDuration + fm.metrics.duration;
     });
 
-   
-    callback(funcs_with_metrics);
+    const mb = 1024000
+
+    const avgWaitTime = totalWaitTime/seqLen;
+    const avgInitTime = totalInitTime/seqLen;
+
+    if(avgWaitTime > avgInitTime - ((condActionDuration - p)/(seqLen -1))) isToMerge = true;
+
+    // fin qui needs_partial è sempre false
+    if(whole){
+        if( finalCodeSize > conf.LIMITS.codeSize || totalDuration > conf.LIMITS.limits.timeout || finalMemRequirement > conf.LIMITS.limits.memory){
+            callback(false,funcs_with_metrics);
+        }
+        callback(isToMerge,funcs_with_metrics);
+    }
+
+
+    /**
+     * IN ACTION ANALISIS
+     */
+    funcs_with_metrics.forEach(f=>{
+        let out = true;
+        if(f.metrics.duration >= f.metrics.waitTime){
+            out = false;
+        }
+        if(f.metrics.activations/sequence_metrics.activations > 2){
+            out = false;
+        }
+        f.to_merge = out
+    });
+
+    callback(isToMerge,funcs_with_metrics);
+}
+
+/**
+ * 
+ * @param {*} funcs_with_metrics 
+ * @param {*} sequence_metrics 
+ * @param {*} seqLen 
+ * @param {*} whole 
+ * @param {*} configuration 
+ * @param {*} callback 
+ */
+//28/10/2022
+export function applyMergePolicies2(funcs_with_metrics,sequence_metrics,seqLen,whole,configuration,callback){
+
+
+    function check(funcs){
+        const condActionDuration = sequence_metrics.duration;
+        let isToMerge = false;
+        const p = 2000;
+        let finalCodeSize = 0;
+        let finalMemRequirement = 0;
+        let totalDuration = 0;
+        let totalWaitTime = 0;
+        let totalInitTime = 0;
+        const mb = 1024000;
+        funcs.forEach(fm => {
+            finalCodeSize = finalCodeSize + fm.code_size;
+            finalMemRequirement = finalMemRequirement + fm.limits.memory;
+            totalWaitTime = totalWaitTime + fm.metrics.waitTime;
+            totalInitTime = totalInitTime + fm.metrics.initTime;
+            totalDuration = totalDuration + fm.metrics.duration;
+        });
+
+
+        const avgWaitTime = totalWaitTime/seqLen;
+        const avgInitTime = totalInitTime/seqLen;
+
+        if( finalCodeSize > conf.LIMITS.codeSize/mb || totalDuration > conf.LIMITS.limits.timeout || finalMemRequirement > conf.LIMITS.limits.memory){
+            return isToMerge;
+        }
+
+        if(avgWaitTime > avgInitTime - ((condActionDuration - p)/(seqLen -1))) isToMerge = true;
+
+        return {"outcome":isToMerge,"funcs":funcs};
+    }
+
+    /**
+     * INTRA ACTIONS ANALISIS
+     */
+    
+
+    if(whole){
+        const res = check(funcs_with_metrics);
+        callback(res.outcome,res.funcs,false);
+    }else{
+        /**
+         * IN ACTION ANALISIS 
+         * DISCOVER IF IS NEEDED PARTIAL MERGE
+         */
+        funcs_with_metrics.forEach(f=>{
+            let out = true;
+            //forse qua potrei fare il sistema a punteggio? 
+            /**
+             * TIPO:
+             *  DURATION/WAIT_TIME -> DA NORMALIZZARE TRA 0 E 1
+             *  ACTIVATION/SEQ_ACTIVATION -> DA NORMALIZZARE TRA 0 E 1
+             * 
+             */
+            if(f.metrics.duration >= f.metrics.waitTime){
+                out = false;
+            }
+            if(f.metrics.activations/sequence_metrics.activations > 2){
+                out = false;
+            }
+            f.to_merge = out
+        });
+
+        const new_conf = checkPartialMerges(funcs_with_metrics,configuration);
+
+        if(new_conf.length == 1){
+            const res =  check(new_conf[0])
+            callback(res.outcome,res.funcs,false);
+        }else{
+            let end_funcs = []
+            const expected = new_conf.length;
+            let res;
+            new_conf.forEach(ncf => {
+                if(ncf.length == 1) end_funcs.push(ncf)
+                else{
+                    res = check(ncf);
+                    if(res.outcome) end_funcs.push(res.funcs)
+                }
+            });
+
+            if(expected.length == end_funcs.length){
+                callback(true,end_funcs,true);
+            }else{
+                callback(false,end_funcs,true);
+            }
+        }
+    }
 }
 
 /**
@@ -1242,10 +930,6 @@ function checkPartialMerges(functions_array,configuration){
 
 export {  
         merge,
-        mergePlainTextFuncs,
-        mergeFuncsDiffLangPlainTextBinary,
-        mergeDiffLangActions,
-        mergeFuncsBinarySameLangCB,
         detectLangSimple,
         getMainFileBinary,
         getPackageInfoBinaryNode,

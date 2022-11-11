@@ -38,8 +38,8 @@ const METRICS_ENDPOINT = process.env.METRICS_ENDPOINT != undefined ? process.env
 const ENVIRONMENT = process.env.ENVIRONMENT != undefined ? process.env.ENVIRONMENT : "standalone environment";
 const KINDS = config.get('openwhisk.kinds');
 const API_KEY=config.get('openwhisk.apikey');
-const LIMITS = config.get("openwhisk.system.limits") != undefined ? config.get("openwhisk.system.limits"):{} ;
-const IS_SIMULATION = config.get("simulation") != undefined ? config.get("simulation"):false;
+const LIMITS = config.get("openwhisk.system.default") != undefined ? config.get("openwhisk.system.default"):{} ;
+const SIMULATION_ENABLED = config.get("simulation") != undefined ? config.get("simulation"):false;
 
 /**
  * KAFKA
@@ -58,7 +58,7 @@ module.exports =
                     METRICS_ENDPOINT,
                     METRICS,
                     LIMITS,
-                    IS_SIMULATION,
+                    SIMULATION_ENABLED,
                     KAFKA_TOPIC_PRODUCE,
                     KAFKA_TOPIC_CONSUME,
                     KAFKA_BOOTSTRAP_SERVER,
