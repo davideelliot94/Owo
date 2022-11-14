@@ -2,7 +2,6 @@ import * as utils from "./utils/utils.js";
 import * as fg from "./openwhisk/action_gestures.js";
 import * as logger from "./log/logger.cjs";
 import Limit from "./metrics/Limit.js";
-import { json } from "express";
 
 export async function mergeSequence(req,res){
 
@@ -335,7 +334,7 @@ export async function optimizeSequence(req,res){
     }); 
 }
 
-export async function optimizeSequence2(req,res){
+export async function optimizeSequenceTest(req,res){
     logger.log("/api/v1/action/optimize", "info");
     var funcs = [];
 
@@ -576,60 +575,3 @@ export async function getMetrics(req,res){
     res.json(response);
 }
 
-export async function getAction(req,res){
-    logger.log("/api/v1/action/get", "info");
-
-    fg.getAction(req.body.name).then((result)=>{
-        res.json(result);
-    });
-}
-
-export async function listActions(req,res){
-    fg.listActionsCB(function(result){
-        if(result.length < 1){
-            res.json({"mex":"No actions found"})
-        }else{
-            res.json(result);
-        }
-    })
-}
-
-export async function invokeAction(req,res){
-    logger.log("/api/v1/action/invoke", "info");
-    var blocking = false;
-    const params = req.body.params;
-    if(Object.keys(req.body).includes("blocking")){
-        if(req.body.blocking) blocking = true;
-    }
-
-    fg.invokeActionWithParams(req.body.name,params,blocking).then((result)=>{
-        res.json(result);
-    });
-}
-
-//17102022
-export async function createActionTest(req,res){
-    
-    if(req.file !== null && req.file !== undefined){
-        if(Buffer.byteLength(req.file.buffer)/1000000 > 35 ){
-            res.json({"mex":"Artifact too big, can't create action"})
-        }else{
-            if(req.body.name === null || req.body.name === undefined || req.body.name == "" ){
-                res.json({"mex":"Please provide a valid name to create the new action"})
-            }
-            if(req.body.kind === null || req.body.kind === undefined || req.body.kind == "" ){
-                res.json({"mex":"Please provide a valid kind to create the new action"})
-            }
-            fg.createActionCB(req.body.name,req.file.buffer,req.body.kind,"binary",req.body.limits, function (result){
-                res.json({"mex":"Action succesfully created","result":result})
-            })
-        }
-    }else{
-        if(req.body.name === null || req.body.name === undefined || req.body.name == "" ){
-            res.json({"mex":"Please provide a valid name to create the new action"})
-        }
-        fg.createActionCB(req.body.name,req.file.buffer,req.body.kind,"binary",req.body.limits, function (result){
-            res.json({"mex":"Action succesfully created","result":result})
-        })
-    } 
-}

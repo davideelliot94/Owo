@@ -231,4 +231,96 @@ function buildMessage(pre,post,period,limit,preMetrics,only_seq){
     return message;
 }
 
+function buildMessageSimulationOptimization(pre,post,period,limit,preMetrics,only_seq){
+
+    const condActionDuration = preMetrics.duration/1000;
+    const condActionArrivalRate = preMetrics.arrivalRate    
+
+    var avgColdStartRate = 0.0;
+    var avgColdStartDuration = 0.0;
+    var message = {
+                    "name":"test", // name of the configuration
+                    "seq":{
+                        "name":"seq",
+                        "arrivalRate":post == null ? condActionArrivalRate:0.0,
+                        "avgDuration":condActionDuration != null && condActionDuration != undefined  &&  condActionDuration > 0 ? condActionDuration:0,
+                    },
+                    "preFunctions":[],// functions entry   {"name":"F1","arrivalRate":, .... ,  },
+                    "postFunctions":[],// functions entry   {"name":"F1","arrivalRate":, .... ,  },
+                    "preNum": 0,// int
+                    "postNum": 0,// int
+                    "condActionDuration":condActionDuration != null && condActionDuration != undefined  &&  condActionDuration > 0 ? condActionDuration:0, //int seqDuration+ seqWaitTime/seqLen
+                    "avgColdStartRate":avgColdStartRate ,// double
+                    "avgColdStartDuration":avgColdStartDuration,//double
+                    "stopTime":300, // int
+                }
+
+    let preFunctions = []
+
+    pre.forEach((funcs,i) => {
+
+        preFunctions.push({
+            "name":funcs.function.name,
+            "arrivalRate":only_seq ? 0.0 :( post == null ? funcs.metrics.arrivalRate: (funcs.metrics.arrivalRate - condActionArrivalRate)),
+            "avgDuration":funcs.metrics.duration/1000,
+            "memory":funcs.function.limits.memory
+            })  
+        avgColdStartRate += funcs.metrics.coldStartsRate
+        avgColdStartDuration += funcs.metrics.coldStartDuration /1000
+        
+        if(only_seq & i == 0 ){
+            preFunctions[0].arrivalRate = condActionArrivalRate > 0 ?condActionArrivalRate:funcs.metrics.arrivalRate
+        }
+    });
+
+    if(post == null){
+        
+        const flength = preFunctions.length
+        message.preFunctions = preFunctions
+        message.postFunctions = []
+        message.preNum = preFunctions.length
+        message.postNum = 0
+        message.avgColdStartRate = avgColdStartRate  != null  &&  avgColdStartRate != undefined && avgColdStartRate > 0 ? avgColdStartRate/flength : 0.0
+        message.avgColdStartDuration = avgColdStartDuration != null  && avgColdStartRate != undefined &&  avgColdStartDuration > 0 ? avgColdStartDuration + 2000:2500
+        message.avgColdStartDuration = message.avgColdStartDuration/1000
+    }else{
+
+        const postFunctions = []
+
+        if(Array.isArray(post)){
+            post.forEach(funcs => {
+            
+                postFunctions.push({
+                    "name":funcs.function.name,
+                    "arrivalRate":condActionArrivalRate,
+                    "avgDuration":funcs.metrics.duration/1000,
+                    "memory":funcs.function.limits.memory
+                    })  
+                avgColdStartRate += funcs.metrics.coldStartsRate
+                avgColdStartDuration += funcs.metrics.coldStartDuration 
+            });
+        }else{
+            postFunctions.push({
+                "name":post.function.name,
+                "arrivalRate":condActionArrivalRate,
+                "avgDuration":post.metrics.duration/1000,
+                "memory":post.function.limits.memory
+                })  
+            avgColdStartRate += post.metrics.coldStartsRate
+            avgColdStartDuration += post.metrics.coldStartDuration
+        }
+
+        const flength = preFunctions.length + postFunctions.length
+        message.preFunctions = preFunctions
+        message.postFunctions = postFunctions
+        message.preNum = preFunctions.length
+        message.postNum = postFunctions.length
+        message.avgColdStartRate = avgColdStartRate != null && avgColdStartRate != undefined && avgColdStartRate > 0  ? avgColdStartRate/flength : 0.0
+        message.avgColdStartDuration = avgColdStartDuration != null && avgColdStartRate != undefined && avgColdStartDuration > 0  ? avgColdStartDuration + 2000:2500
+        message.avgColdStartDuration = message.avgColdStartDuration/1000
+    }
+
+    return message;
+}
+
 module.exports = {sendToKafka,receiveFromKafka,buildMessage,init}

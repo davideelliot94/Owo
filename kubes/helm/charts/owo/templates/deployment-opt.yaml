@@ -18,8 +18,10 @@ spec:
       - name: {{ .Values.deployment.image.name }}
         image: {{ .Values.deployment.image.repository }}
         volumeMounts:
-        - mountPath: {{ .Values.deployment.image.volumes.mountPath }}
-          name: {{ .Values.deployment.image.volumes.volumeName }}
+        - mountPath: {{ .Values.deployment.image.volumes[0].mountPath }}
+          name: {{ .Values.deployment.image.volumes[0].volumeName }}
+        - mountPath: {{ .Values.deployment.image.volumes[1].mountPath }}
+          name: {{ .Values.deployment.image.volumes[1].volumeName }}
         resources:
           requests:
             memory: {{ .Values.deployment.image.resources.requests.memory }}
@@ -56,6 +58,9 @@ spec:
         ports:
         - containerPort: {{ .Values.deployment.image.ports.containerPort }}
       volumes:
-      - name: {{ .Values.deployment.image.volumes.volumeName }}
+      - name: {{ .Values.deployment.image.volumes[0].volumeName }}
         hostPath:
-          path: {{ .Values.deployment.image.volumes.hostPath }}
+          path: {{ .Values.deployment.image.volumes[0].hostPath }}
+      - name: {{ .Values.deployment.image.volumes[1].volumeName }}
+        configMap:
+          name: {{ .Values.name }}-conf-configmap

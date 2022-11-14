@@ -24,11 +24,13 @@ metadata:
     prometheus.io/scrape: 'true'
     prometheus.io/port:   '{{ .Values.prometheus.port }}'
 spec:
-  type: ClusterIP
+  type: NodePort
   selector:
     name: {{ .Release.Name }}-prometheus-server
   ports:
     - port: {{ .Values.prometheus.port }}
+      targetPort: {{ .Values.prometheus.port }}
+      nodePort: 31092    
 {{- end }}
 
 

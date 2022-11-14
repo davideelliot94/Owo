@@ -21,8 +21,10 @@ spec:
       - name: {{ .Values.owo.deployment.image.name }}
         image: {{ .Values.owo.deployment.image.repository }}
         volumeMounts:
-        - mountPath: {{ .Values.owo.deployment.image.volumes.mountPath }}
-          name: {{ .Values.owo.deployment.image.volumes.volumeName }}
+        - mountPath: {{ .Values.owo.deployment.image.volumes[0].mountPath }}
+          name: {{ .Values.owo.deployment.image.volumes[0].volumeName }}
+        - mountPath: {{ .Values.owo.deployment.image.volumes[1].mountPath }}
+          name: {{ .Values.owo.deployment.image.volumes[1].volumeName }}
         resources:
           requests:
             memory: {{ .Values.owo.deployment.image.resources.requests.memory }}
@@ -62,3 +64,6 @@ spec:
       - name: {{ .Values.owo.deployment.image.volumes.volumeName }}
         hostPath:
           path: {{ .Values.owo.deployment.image.volumes.hostPath }}
+      - name: {{ .Values.owo.deployment.image.volumes[1].volumeName }}
+        configMap:
+          name: {{ .Values.owo.name }}-conf-configmap

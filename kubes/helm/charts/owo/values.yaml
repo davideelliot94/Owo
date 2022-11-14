@@ -30,9 +30,11 @@ deployment:
     repository: davideelliot/owo:0.1.5
     pullPolicy: ifNotPresent
     volumes:
-      volumeName: owovolume
+    - volumeName: owovolume
       mountPath:  /owo/cli 
       hostPath: /home/master/owo/cli
+    - volumeName: owoconfvolume
+      mountPath:  /owo/config 
     tag: ""
     resources:
       requests:
