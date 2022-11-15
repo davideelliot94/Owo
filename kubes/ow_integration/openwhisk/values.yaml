@@ -741,7 +741,7 @@ owo:
     image:
       name: owo-sim
       label: owo-sim
-      repository: davideelliot/owo-sim:0.1.5
+      repository: davideelliot/owo-sim:0.2
       pullPolicy: ifNotPresent
     env:
       cm: 
