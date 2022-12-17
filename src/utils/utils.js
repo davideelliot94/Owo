@@ -16,15 +16,14 @@ const __dirname = path.resolve();
  * @param {Boolean} whole  true -> merge full, false -> partial merge
  * @returns 
  */
-
-async function merge(functions_to_merge,seq_name,binaries_timestamp,whole){
+async function merge(functions_to_merge,seq_name,binaries_timestamp,mem_policy,whole){
     return new Promise(function(resolve, reject) {
 
         if(!whole) seq_name = seq_name+"-part"+Date.now();
 
         var sameLangCounter = 0;
         const prevKind = functions_to_merge[0].kind;
-        var merged_seq_limits = fg.computeLimit(functions_to_merge);
+        var merged_seq_limits = fg.computeLimit(functions_to_merge,mem_policy);
         var binary_count = functions_to_merge[0].binary ? 1:0;
 
         if(functions_to_merge.length <=1){
@@ -50,18 +49,32 @@ async function merge(functions_to_merge,seq_name,binaries_timestamp,whole){
             // le functions hanno tutte le stessa Kind (linguaggio) posso fonderle come plain text
             if (binary_count > 0) {
                 // almeno una binaria 
-
-                // PROBLEMA DEL binary_timestamp SE STO FACENDO UNA FUSIONE PARZIALE 
-
                 mergeFuncsBinarySameLangCB(funcs, seq_name,binaries_timestamp, function (timestamp_folder) {
-                    zipgest.zipDirLocalCB("binaries/" + timestamp_folder, (file) => {
-
-                        fg.createActionCB(seq_name, file, prevKind,"binary",merged_seq_limits, function (result) {
-                            zipgest.cleanDirs("/binaries/" + timestamp_folder);
-                            zipgest.cleanDirs("/binaries/" + timestamp_folder + ".zip");
-                            resolve( [seq_name,merged_seq_limits,result]);
-                        });
-                        
+                    zipgest.zipDirLocalCB(timestamp_folder, (file) => {
+                        if(whole){
+                            fg.deleteActionCB(seq_name, function (data) {
+                                fg.createActionCB(seq_name, file, prevKind,"binary",merged_seq_limits, function (result) {
+                                    if(Object.keys(result).includes("error")){
+                                        reject(result)
+                                    }
+                                    let dirsplit = timestamp_folder.split("/")
+                                    let dirname = "/"+dirsplit[dirsplit.length-3]+"/"+dirsplit[dirsplit.length-2]                              
+                                    zipgest.cleanDirs(dirname);
+                                    resolve( [seq_name,merged_seq_limits,result]);
+                                });
+                            })
+                        }else{
+                            fg.createActionCB(seq_name, file, prevKind,"binary",merged_seq_limits, function (result) {
+                                if(Object.keys(result).includes("error")){
+                                    reject(result)
+                                }
+                                let dirsplit = timestamp_folder.split("/")
+                                let dirname = "/"+dirsplit[dirsplit.length-3] +"/"+dirsplit[dirsplit.length-2]+"/"+dirsplit[dirsplit.length-1]
+                                zipgest.cleanDirs(dirname);
+                                zipgest.cleanDirs(dirname + ".zip");
+                                resolve( [seq_name,merged_seq_limits,result]);
+                            });
+                        }
                     })
                 })
             } else {
@@ -70,50 +83,55 @@ async function merge(functions_to_merge,seq_name,binaries_timestamp,whole){
                     if(whole){
                         fg.deleteActionCB(seq_name, function (data) {
                             fg.createActionCB(seq_name, wrappedFunc, prevKind,"plain",merged_seq_limits, function (result) {
+                                if(Object.keys(result).includes("error")){
+                                    reject(result)
+                                }
                                 resolve( [seq_name,merged_seq_limits,result]);
                             });
                         });
                     }else{
                         fg.createActionCB(seq_name, wrappedFunc, prevKind,"plain",merged_seq_limits, function (result) {
+                            if(Object.keys(result).includes("error")){
+                                reject(result)
+                            }
                             resolve( [seq_name,merged_seq_limits,result]);
                         });  
                     }         
                 });
             }        
         } else {
-
-            // PROBLEMA DEL binary_timestamp SE STO FACENDO UNA FUSIONE PARZIALE
             mergeDiffLangActions(funcs, seq_name,binaries_timestamp, function (timestamp_folder,docker_img) {
-                zipgest.zipDirLocalCB("binaries/" + timestamp_folder, (file) => {
-                    
+                zipgest.zipDirLocalCB(timestamp_folder, (file) => {
                     if(whole){
                         fg.deleteActionCB(seq_name, function (data) {
                             fg.createDockerActionCB(seq_name, file,merged_seq_limits,docker_img, function (result) {
                                 if(Object.keys(result).includes("error")){
                                     reject(result)
                                 }
-                                //DEVO CONTROLLARE TUTTE LE VOLTE CHE CREO UNA ACTION SE IL RISULTATO CONTIENE "error"
-                                // esempio
-                                //{"code":"CEg5yjaCKcJlAAIAXvJwfp0ZHqCQLoLQ","error":"The request content was malformed:\n'image' must be a string defined in 'exec' for 'blackbox' actions"}
-                                
-                                zipgest.cleanDirs("/binaries/" + timestamp_folder);
-                                zipgest.cleanDirs("/binaries/" + timestamp_folder + ".zip");
+                                let dirsplit = timestamp_folder.split("/")
+                                let dirname ="/"+ dirsplit[dirsplit.length-3]+"/"+dirsplit[dirsplit.length-2]                              
+                                zipgest.cleanDirs(dirname);
                                 resolve( [seq_name,merged_seq_limits,result]);
                             });
                         })
                     }else{
-                        fg.createDockerActionCB(seq_name, file,merged_seq_limits,docker_img, function (result) {      
-                            zipgest.cleanDirs("/binaries/" + timestamp_folder);
-                            zipgest.cleanDirs("/binaries/" + timestamp_folder + ".zip");
+                        fg.createDockerActionCB(seq_name, file,merged_seq_limits,docker_img, function (result) {    
+                            if(Object.keys(result).includes("error")){
+                                reject(result)
+                            }
+                            let dirsplit = timestamp_folder.split("/")
+                            let dirname = "/"+dirsplit[dirsplit.length-3] +"/"+dirsplit[dirsplit.length-2]+"/"+dirsplit[dirsplit.length-1]  
+                            zipgest.cleanDirs(dirname);
+                            zipgest.cleanDirs(dirname + ".zip");
                             resolve( [seq_name,merged_seq_limits,result]);
-                        }); 
-                    }   
-                                                 
+                        });  
+                    }                                   
                 })
             });        
         }
     });
-}
+} 
+
 /**
  * 
  * @param {Array of Action classes} funcs 
@@ -130,6 +148,7 @@ function mergeFuncsBinarySameLangCB(funcs,seqName,binaries_timestamp,callback){
         -PYTHON
     */
 
+    let dir_path = ""
     logger.log("Merging same lang actions to binary","info");
     const fkind = funcs[0].kind;
     if(fkind.includes("nodejs")){
@@ -139,7 +158,6 @@ function mergeFuncsBinarySameLangCB(funcs,seqName,binaries_timestamp,callback){
         var dependecies = {}
         var param = funcs[0].param;
         const binaries = path.join(__dirname,"src/utils/binaries/");
-        //fs.mkdirSync(binaries+ timestamp, { recursive: true });
         
         //FOR LOOP PER SEGNARE TUTTI GLI IMPORT
         var nasync = 0
@@ -225,11 +243,20 @@ function mergeFuncsBinarySameLangCB(funcs,seqName,binaries_timestamp,callback){
             "dependencies": dependecies
         };
         let pj = Buffer.from(JSON.stringify(pjraw),"utf8");
-        
-        fs.writeFileSync(binaries+ binaries_timestamp + '/package.json', pj,{encoding: "utf8"});
-        fs.writeFileSync(binaries+ binaries_timestamp + '/index.js', buff,{encoding: "utf8"});
 
-        //CICLO PER SCRIVERE TUTTI GLI ALTRI FILES SE CE NE SONO
+        //mkdir binaries + binariest_timestamp + timestamp
+        // per ogni func copio i file nella cartella 
+        const dir_stamp = Date.now()
+        dir_path = binaries+ binaries_timestamp +"/"+dir_stamp ;
+        fs.mkdirSync(dir_path)
+        funcs.forEach((f) => {
+            f.file_list.forEach((file)=>{
+                child_process.execSync("cp "+binaries+ binaries_timestamp +"/"+file+ " "+dir_path+"/"+file)
+            })
+        })
+        
+        fs.writeFileSync(dir_path + '/package.json', pj,{encoding: "utf8"});
+        fs.writeFileSync(dir_path+ '/index.js', buff,{encoding: "utf8"});
 
     }
     if(fkind.includes("python")){
@@ -314,12 +341,21 @@ function mergeFuncsBinarySameLangCB(funcs,seqName,binaries_timestamp,callback){
         });
 
         let buff = Buffer.from(wrappedFunc, 'utf8');
-        fs.writeFileSync(binaries+ binaries_timestamp + '/__main__.py', buff,{encoding: "utf8"});
+
+        const dir_stamp = Date.now()
+        dir_path = binaries+ binaries_timestamp +"/"+dir_stamp ;
+        fs.mkdirSync(dir_path)
+        funcs.forEach((f) => {
+            f.file_list.forEach((file)=>{
+                child_process.execSync("cp "+binaries+ binaries_timestamp +"/"+file+ " "+dir_path+"/"+file)
+            })
+        })
+        fs.writeFileSync(dir_path+'/__main__.py', buff,{encoding: "utf8"});
 
         //CICLO PER SCRIVERE TUTTI GLI ALTRI FILES SE CE NE SONO
 
     }    
-    callback(binaries_timestamp);
+    callback(dir_path);
 
 }
 /**
@@ -627,14 +663,23 @@ function mergeDiffLangActions(funcs,seqName,binaries_timestamp,callback){
     };
     let pj = Buffer.from(JSON.stringify(pjraw),"utf8");
     
-    fs.writeFileSync(binaries+ binaries_timestamp + '/package.json', pj,{encoding: "utf8"});
-    fs.writeFileSync(binaries+ binaries_timestamp + '/index.js', buff,{encoding: "utf8"});
+    const dir_stamp = Date.now()
+    dir_path = binaries+ binaries_timestamp +"/"+dir_stamp ;
+    fs.mkdirSync(dir_path)
+    funcs.forEach((f) => {
+        f.file_list.forEach((file)=>{
+            child_process.execSync("cp "+binaries+ binaries_timestamp +"/"+file+ " "+dir_path+"/"+file)
+        })
+    })
+    
+    fs.writeFileSync(dir_path + '/package.json', pj,{encoding: "utf8"});
+    fs.writeFileSync(dir_path+ '/index.js', buff,{encoding: "utf8"});
     const full_docker_img = conf.DOCKER_IMG_FULL+":"+img_tag
 
     child_process.execSync("(cd "+path.join(__dirname,"/dockers/custom_runtime/")+"; docker build . -t "+full_docker_img+")").toString();
     child_process.execSync("docker push "+full_docker_img).toString();
 
-    callback(binaries_timestamp,full_docker_img);
+    callback(dir_path,full_docker_img);
 }
 
 /**
@@ -687,15 +732,16 @@ function getMainFileBinary(timestamp,name){
     return func.toString();
 }
 
-function copyAllFiles(extracted,binaries,main_name){
+function copyAllFiles(extracted,binaries,main_name,dependecies_file){
     const fullPath_extracted = path.join(__dirname,extracted);
     const fullPath_binaries = path.join(__dirname,binaries);
 
     var lsFiles = child_process.execSync("ls -p "+fullPath_extracted +" | grep -v / ").toString();
     var lsSplitFiles = lsFiles.split("\n");
     var file_list = []    
+    const timestamp = Date.now()
     lsSplitFiles.forEach(file =>{
-        if(!file.includes(main_name) && file.length > 1){
+        if(!file.includes(main_name) && !file.includes(dependecies_file) && file.length > 1){
             const tmp = file.split(".")
             child_process.execSync("cp -r "+fullPath_extracted+"/"+file + " " +fullPath_binaries+"/"+tmp[0]+"-"+timestamp+"."+tmp[1]); 
             file_list.push(tmp[0]+"-"+timestamp+"."+tmp[1])      
@@ -734,7 +780,7 @@ function applyMergePolicies(funcs_with_metrics,sequence_metrics,seqLen,whole,cal
      * INTRA ACTIONS ANALISIS
      */
     const p = 2000;
-    const condActionDuration = sequence_metrics.duration;
+    const condActionLatency = sequence_metrics.waitTime;
     let finalCodeSize = 0;
     let finalMemRequirement = 0;
     let totalDuration = 0;
@@ -753,7 +799,7 @@ function applyMergePolicies(funcs_with_metrics,sequence_metrics,seqLen,whole,cal
     const avgWaitTime = totalWaitTime/seqLen;
     const avgInitTime = totalInitTime/seqLen;
 
-    if(avgWaitTime > avgInitTime - ((condActionDuration - p)/(seqLen -1))) isToMerge = true;
+    if(avgWaitTime > avgInitTime - ((condActionLatency - p)/(seqLen -1))) isToMerge = true;
 
     // fin qui needs_partial è sempre false
     if(whole){
@@ -791,11 +837,11 @@ function applyMergePolicies(funcs_with_metrics,sequence_metrics,seqLen,whole,cal
  * @param {*} callback 
  */
 //28/10/2022
-export function applyMergePolicies2(funcs_with_metrics,sequence_metrics,seqLen,whole,configuration,callback){
+export function applyMergePoliciesNuovaPolicy(funcs_with_metrics,sequence_metrics,seqLen,whole,configuration,callback){
 
 
     function check(funcs){
-        const condActionDuration = sequence_metrics.duration;
+        const condActionLatency = sequence_metrics.waitTime;
         let isToMerge = false;
         const p = 2000;
         let finalCodeSize = 0;
@@ -820,7 +866,7 @@ export function applyMergePolicies2(funcs_with_metrics,sequence_metrics,seqLen,w
             return isToMerge;
         }
 
-        if(avgWaitTime > avgInitTime - ((condActionDuration - p)/(seqLen -1))) isToMerge = true;
+        if(avgWaitTime > avgInitTime - ((condActionLatency - p)/(seqLen -1))) isToMerge = true;
 
         return {"outcome":isToMerge,"funcs":funcs};
     }

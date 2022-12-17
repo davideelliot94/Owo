@@ -131,7 +131,6 @@ async function prepareSimulation(sequenceName,optSequenceName,p,seqonly){
 
     result.exec.components.forEach(element => {
         const tmp = element.split("/");
-        console.log(tmp[tmp.length -1])
         funcs.push({function:{"name":tmp[tmp.length -1],"limits":{}},"metrics":{}});
     });
 
@@ -183,7 +182,6 @@ async function prepareOptimizationSimulation(sequenceName,p){
 
     result.exec.components.forEach(element => {
         const tmp = element.split("/");
-        console.log(tmp[tmp.length -1])
         funcs.push({function:{"name":tmp[tmp.length -1],"limits":{}},"metrics":{}});
     });
 

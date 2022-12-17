@@ -32,7 +32,7 @@ app.post("/api/v1/sequence/merge", handler.mergeSequence);
 
 app.post("/api/v1/sequence/optimize", handler.optimizeSequence);
 
-app.post("/api/v1/sequence/optimize2", handler.optimizeSequenceTest);
+app.post("/api/v1/sequence/optimize2", handler.optimizeSequenceTestMergeParziale);
 
 /** 
  * 

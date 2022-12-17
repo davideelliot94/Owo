@@ -224,11 +224,16 @@ async function getAction(funcName){
  * @param {*} configuration 
  * @returns Action class 
  */
-async function parseAction(element,timestamp,binaries_timestamp){
+ async function parseAction(element,timestamp,binaries_timestamp){
 
     logger.log("Parsing function","info");
+    let main_file_name = element.exec.main === undefined || element.exec.main === null ? null:element.exec.main
 
     if(element.exec.binary) {
+
+        /**
+        * SE LA ACTION IN ESAME È DI TIPO BINARIO
+        */
 
         let buff = Buffer.from(element.exec.code,'base64');
 
@@ -236,31 +241,34 @@ async function parseAction(element,timestamp,binaries_timestamp){
         const zipPath = path.join(__dirname , "src/utils/zip_workdir/zipped/") + timestamp + '/func.zip';
        
 
-        // get size
-
-        
         fs.mkdirSync(dirPath, { recursive: true });
         fs.writeFileSync(zipPath, buff);
+
+        /**
+         * GET ARTIFACT SIZE
+         */
         const codeSize = zipgest.getFileSize(zipPath);
         await zipgest.extractZipLocal(timestamp);
 
         var kind = element.exec.kind;
 
-        
+        /**
+         * ACTION LANGUAGE IS NODE 
+         */
         if(kind.includes("nodejs")){
             var packRaw = utils.getPackageInfoBinaryNode(timestamp)
-            var pack = JSON.parse(packRaw);
+            var pack = packRaw.length < 1 ? packRaw:JSON.parse(packRaw);
 
+            main_file_name = main_file_name === null ? "index.js":main_file_name+".js"
 
-
-            var func = utils.getMainFileBinary(timestamp,pack.main); 
+            var func = utils.getMainFileBinary(timestamp,main_file_name); 
 
             const binaries = path.join(__dirname,"src/utils/binaries/");
             fs.mkdirSync(binaries+ binaries_timestamp, { recursive: true });
 
             //ROUTINE PER LEGGERE IL CONTENUTO DI TUTTI I FILE 
-            //utils.copyAllFiles("/src/utils/zip_workdir/extracted/"+timestamp,"/src/utils/binaries/"+binaries_timestamp,pack.main)
-            const file_list =utils.copyAllFiles("/src/utils/zip_workdir/extracted/"+timestamp,"/src/utils/binaries/"+binaries_timestamp,pack.main)
+            const file_list =utils.copyAllFiles("/src/utils/zip_workdir/extracted/"+timestamp,
+                                                "/src/utils/binaries/"+binaries_timestamp,main_file_name, "package.json")
 
             zipgest.cleanDirs("/zip_workdir/extracted/"+timestamp);
 
@@ -300,18 +308,17 @@ async function parseAction(element,timestamp,binaries_timestamp){
                                 false,
                                 limit,
                                 null,
-                                codeSize
+                                codeSize,
+                                file_list
                             )
 
             if(action.code.includes("async ") || action.code.includes(" Promise") || action.code.includes(".then(")){
                 action.asynch = true;
             }
-
             
             if(file_list.length > 0){
                 file_list.forEach(lf=>{
-
-                tmp.code = tmp.code.replace(lf.split("-")[0]+lf.split("-")[1],lf)
+                    action.code = action.code.replace(lf.split("-")[0]+lf.split("-")[1],lf)
                 })
             }
             
@@ -321,32 +328,26 @@ async function parseAction(element,timestamp,binaries_timestamp){
 
         }
 
-
+        /**
+         * ACTION LANGUAGE IS PYTHON 
+         */
         if(kind.includes("python")){
 
-            //VA SCOMMENTATA TUTTA QUESTA ROBA
-            //QUANDO SO CHE LE ROUTINE VANNO
+            main_file_name = main_file_name === null ? "__main__.py":main_file_name+".py"
 
-
-            var func = utils.getMainFileBinary(timestamp,"__main__.py"); 
+            var func = utils.getMainFileBinary(timestamp,main_file_name); 
 
             const binaries = path.join(__dirname,"src/utils/binaries/");
             fs.mkdirSync(binaries+ binaries_timestamp, { recursive: true });
 
             //ROUTINE PER LEGGERE IL CONTENUTO DI TUTTI I FILE
-            const file_list = utils.copyAllFiles("/src/utils/zip_workdir/extracted/"+timestamp+"/","/src/utils/binaries/"+binaries_timestamp+"/","__main__.py")
+            const file_list = utils.copyAllFiles("/src/utils/zip_workdir/extracted/"+timestamp+"/",
+                                                 "/src/utils/binaries/"+binaries_timestamp+"/",main_file_name)
             zipgest.cleanDirs("/zip_workdir/extracted/"+timestamp);
 
+            //if è specificato un main diverso cerca il metodo con il nome specificato
 
-            let main_func;
-/*
-            if (func.indexOf("main") === -1){
-                main_func = "main"
-            }else{
-                main_func = "main"
-            }*/
-
-            main_func = "main"
+            let main_func = "main"
 
             
             var limit = new Limits(
@@ -367,20 +368,13 @@ async function parseAction(element,timestamp,binaries_timestamp){
                                 false,
                                 limit,
                                 null,
-                                codeSize
+                                codeSize,
+                                file_list
                             )
-
-            
-            /*if(file_list.length > 0){
-                file_list.forEach(lf=>{
-                    tmp.code = tmp.code.replace(" "+lf.split("-")[0]+" "," "+lf+" ")
-                })
-            }*/
 
             if(file_list.length > 0){
                 file_list.forEach(lf=>{
-
-                tmp.code = tmp.code.replace(lf.split("-")[0]+lf.split("-")[1],lf)
+                    action.code = action.code.replace(lf.split("-")[0]+lf.split("-")[1],lf)
                 })
             }
             
@@ -393,7 +387,154 @@ async function parseAction(element,timestamp,binaries_timestamp){
 
         }     
      
-    }else {
+        /**
+         * ACTION LANGUAGE IS RUBY 
+         */
+        if(kind.includes("ruby")){
+            
+            /**
+             * QUESTION:
+             *  COME PRENDO LE DIPENDEZE IN RUBY?
+             */
+            main_file_name = main_file_name === null ? "main.rb": main_file_name+".rb"
+
+            var func = utils.getMainFileBinary(timestamp,main_file_name); 
+
+            const binaries = path.join(__dirname,"src/utils/binaries/");
+            fs.mkdirSync(binaries+ binaries_timestamp, { recursive: true });
+
+            //ROUTINE PER LEGGERE IL CONTENUTO DI TUTTI I FILE
+            const file_list = utils.copyAllFiles("/src/utils/zip_workdir/extracted/"+timestamp+"/","/src/utils/binaries/"+binaries_timestamp+"/",main_file_name)
+            zipgest.cleanDirs("/zip_workdir/extracted/"+timestamp);
+
+
+
+            zipgest.cleanDirs("/zip_workdir/extracted/"+timestamp);
+
+
+            // lang dependent code
+            // ext:_ .rb
+            // main file must be main.rb
+
+            //if è specificato un main diverso cerca il metodo con il nome specificato
+            let main_func = "main"
+
+            
+            var limit = new Limits(
+                element.limits.concurrency,
+                element.limits.logs,
+                element.limits.memory,
+                element.limits.timeout        
+                )
+
+            const action = new Action(
+                            element.name,
+                            func.replace(" "+main_func+"("," "+element.name +timestamp+"("),
+                            element.name + timestamp+"(",
+                            func.substring(func.indexOf(main_func+"(") +main_func.length+ 1, func.indexOf(")")),
+                            true,
+                            null,
+                            kind,
+                            false,
+                            limit,
+                            null,
+                            codeSize,
+                            file_list
+                        )
+
+            if(file_list.length > 0){
+                file_list.forEach(lf=>{
+                    action.code = action.code.replace(lf.split("-")[0]+lf.split("-")[1],lf)
+                })
+            }
+
+
+            if(action.code.includes("async ") || action.code.includes(" await ")){
+                action.asynch = true;
+            }
+
+            return action;
+
+        }
+
+        /**
+         * ACTION LANGUAGE IS JAVA 
+         */
+
+        if(kind.includes("java")){
+
+            //situazione particolare perchè ho un jar, devo capire cosa fare
+            // non devo installare  dipendenze perchè è un fat jar suppongo
+        }
+
+        /**
+         * ACTION LANGUAGE IS JAVA 
+         */
+
+         if(kind.includes("go")){
+            // non devo installare dipendeze -> C like
+            // però devo prendere correttametne l'import
+
+            // DEVO CERCARE IL FILE CON SCRITTO DENTRO "package main" -> quello è il main
+            //const main_file_name = getFileWithMain()
+            main_file_name = main_file_name === null ? "insert filename.go":main_file_name+".go"
+            var func = utils.getMainFileBinary(timestamp,main_file_name); 
+
+            
+
+            const binaries = path.join(__dirname,"src/utils/binaries/");
+            fs.mkdirSync(binaries+ binaries_timestamp, { recursive: true });
+
+            //ROUTINE PER LEGGERE IL CONTENUTO DI TUTTI I FILE
+            const file_list = utils.copyAllFiles("/src/utils/zip_workdir/extracted/"+timestamp+"/","/src/utils/binaries/"+binaries_timestamp+"/",main_file_name)
+            zipgest.cleanDirs("/zip_workdir/extracted/"+timestamp);
+
+            //if è specificato un main diverso cerca il metodo con il nome specificato
+
+            let main_func = "Main"
+
+            
+            var limit = new Limits(
+                                element.limits.concurrency,
+                                element.limits.logs,
+                                element.limits.memory,
+                                element.limits.timeout        
+                                )
+
+            // devo modificare coerentemente
+            const action = new Action(
+                                element.name,
+                                func.replace(" "+main_func+"("," "+element.name +timestamp+"("),
+                                element.name + timestamp+"(",
+                                func.substring(func.indexOf(main_func+"(") +main_func.length+ 1, func.indexOf(")")),
+                                true,
+                                null,
+                                kind,
+                                false,
+                                limit,
+                                null,
+                                codeSize,
+                                file_list
+                            )
+
+            if(file_list.length > 0){
+                file_list.forEach(lf=>{
+                    action.code = action.code.replace(lf.split("-")[0]+lf.split("-")[1],lf)
+                })
+            }
+            
+
+            if(action.code.includes("async ") || action.code.includes(" await ")){
+                action.asynch = true;
+            }
+            
+            return action;
+
+
+        }
+        
+
+    }else{
         logger.log("Not binary function","info");
         var func = element.exec.code
         const codeSize = Buffer.byteLength(func, "utf-8");
@@ -446,15 +587,417 @@ async function parseAction(element,timestamp,binaries_timestamp){
 
         //devo controllare come funziona per il main se python
         if(kind.includes("python")){
-/*
-            let main_func;
 
-            if (func.indexOf("main") === -1){
-                // boh lo devo cercare
+            const main_func = "main";
+
+            const main_func_invocation = func.substring(func.indexOf(main_func));
+
+            
+            var limit = new Limits(
+                                element.limits.concurrency,
+                                element.limits.logs,
+                                element.limits.memory,
+                                element.limits.timeout        
+                                )
+            var func = element.exec.code;
+            const action = new Action(
+                                element.name,
+                                func.replace(" "+main_func+"("," "+element.name +timestamp+"("),
+                                element.name +timestamp+ "(",
+                                main_func_invocation.substring(main_func_invocation.indexOf(main_func+"(")+main_func.length + 1,main_func_invocation.indexOf(")")),
+                                false,
+                                null,
+                                kind,
+                                false,
+                                limit,
+                                null,
+                                codeSize
+                            )
+           
+            if(action.code.includes("async ") || action.code.includes(" await ")){
+                action.asynch = true;
+            }
+
+            return action;
+        } 
+    }
+}
+
+/**
+ * 
+ * @param {JSON object} element function to parse
+ * @param {timestamp} timestamp 
+ * @param {timestamp} binaries_timestamp 
+ * @param {*} configuration 
+ * @returns Action class 
+ */
+
+//15/12/2022
+//AGGIUNTI PIU LINGUAGGI -> da testare
+// provare ad aggiungere merge policies
+async function parseActionTest(element,timestamp,binaries_timestamp){
+
+    logger.log("Parsing function","info");
+    let main_file_name = element.exec.main === undefined || element.exec.main === null ? null:element.exec.main
+
+    if(element.exec.binary) {
+
+        /**
+        * SE LA ACTION IN ESAME È DI TIPO BINARIO
+        */
+
+        let buff = Buffer.from(element.exec.code,'base64');
+
+        const dirPath = path.join(__dirname ,"src/utils/zip_workdir/zipped/") + timestamp;
+        const zipPath = path.join(__dirname , "src/utils/zip_workdir/zipped/") + timestamp + '/func.zip';
+       
+
+        fs.mkdirSync(dirPath, { recursive: true });
+        fs.writeFileSync(zipPath, buff);
+
+        /**
+         * GET ARTIFACT SIZE
+         */
+        const codeSize = zipgest.getFileSize(zipPath);
+        await zipgest.extractZipLocal(timestamp);
+
+        var kind = element.exec.kind;
+
+        /**
+         * ACTION LANGUAGE IS NODE 
+         */
+        if(kind.includes("nodejs")){
+            var packRaw = utils.getPackageInfoBinaryNode(timestamp)
+            var pack = packRaw.length < 1 ? packRaw:JSON.parse(packRaw);
+
+            main_file_name = main_file_name === null ? "index.js":main_file_name+".js"
+
+            var func = utils.getMainFileBinary(timestamp,main_file_name); 
+
+            const binaries = path.join(__dirname,"src/utils/binaries/");
+            fs.mkdirSync(binaries+ binaries_timestamp, { recursive: true });
+
+            //ROUTINE PER LEGGERE IL CONTENUTO DI TUTTI I FILE 
+            const file_list =utils.copyAllFiles("/src/utils/zip_workdir/extracted/"+timestamp,
+                                                "/src/utils/binaries/"+binaries_timestamp,main_file_name, "package.json")
+
+            zipgest.cleanDirs("/zip_workdir/extracted/"+timestamp);
+
+
+            let main_func;
+            let main_func_invocation
+
+            if (func.indexOf("exports.main") === -1){
                 main_func = "main"
+                main_func_invocation = func.substring(func.indexOf(main_func))
             }else{
-                main_func = "main"
-            }*/
+                const last_line = (func.substring(func.indexOf("exports.main"),func.length))
+                main_func = last_line.substring(last_line.indexOf("=")+1,last_line.indexOf(";")).trim()
+                main_func_invocation = func.substring(func.indexOf(main_func))
+            }
+            
+
+            
+
+            //devo aggiungere una variabile a "invokation" per evitare duplicati nelle funzioni con stesso nome 
+
+            var limit = new Limits(
+                                element.limits.concurrency,
+                                element.limits.logs,
+                                element.limits.memory,
+                                element.limits.timeout        
+                                )  
+
+            const action = new Action(
+                                element.name,
+                                func.replace(" "+main_func+"("," "+element.name +timestamp+"("),
+                                element.name +timestamp+"(",
+                                main_func_invocation.substring(main_func_invocation.indexOf(main_func+"(")+main_func.length + 1,main_func_invocation.indexOf(")")),
+                                true,
+                                (pack.dependencies === undefined || pack.dependencies === null )? "" :pack.dependencies,
+                                kind,
+                                false,
+                                limit,
+                                null,
+                                codeSize,
+                                file_list
+                            )
+
+            if(action.code.includes("async ") || action.code.includes(" Promise") || action.code.includes(".then(")){
+                action.asynch = true;
+            }
+            
+            if(file_list.length > 0){
+                file_list.forEach(lf=>{
+                    action.code = action.code.replace(lf.split("-")[0]+lf.split("-")[1],lf)
+                })
+            }
+            
+            
+
+            return action;
+
+        }
+
+        /**
+         * ACTION LANGUAGE IS PYTHON 
+         */
+        if(kind.includes("python")){
+
+            main_file_name = main_file_name === null ? "__main__.py":main_file_name+".py"
+
+            var func = utils.getMainFileBinary(timestamp,main_file_name); 
+
+            const binaries = path.join(__dirname,"src/utils/binaries/");
+            fs.mkdirSync(binaries+ binaries_timestamp, { recursive: true });
+
+            //ROUTINE PER LEGGERE IL CONTENUTO DI TUTTI I FILE
+            const file_list = utils.copyAllFiles("/src/utils/zip_workdir/extracted/"+timestamp+"/",
+                                                 "/src/utils/binaries/"+binaries_timestamp+"/",main_file_name)
+            zipgest.cleanDirs("/zip_workdir/extracted/"+timestamp);
+
+            //if è specificato un main diverso cerca il metodo con il nome specificato
+
+            let main_func = "main"
+
+            
+            var limit = new Limits(
+                                element.limits.concurrency,
+                                element.limits.logs,
+                                element.limits.memory,
+                                element.limits.timeout        
+                                )
+
+            const action = new Action(
+                                element.name,
+                                func.replace(" "+main_func+"("," "+element.name +timestamp+"("),
+                                element.name + timestamp+"(",
+                                func.substring(func.indexOf(main_func+"(") +main_func.length+ 1, func.indexOf(")")),
+                                true,
+                                null,
+                                kind,
+                                false,
+                                limit,
+                                null,
+                                codeSize,
+                                file_list
+                            )
+
+            if(file_list.length > 0){
+                file_list.forEach(lf=>{
+                    action.code = action.code.replace(lf.split("-")[0]+lf.split("-")[1],lf)
+                })
+            }
+            
+
+            if(action.code.includes("async ") || action.code.includes(" await ")){
+                action.asynch = true;
+            }
+            
+            return action;
+
+        }     
+     
+        /**
+         * ACTION LANGUAGE IS RUBY 
+         */
+        if(kind.includes("ruby")){
+            
+            /**
+             * QUESTION:
+             *  COME PRENDO LE DIPENDEZE IN RUBY?
+             */
+            main_file_name = main_file_name === null ? "main.rb": main_file_name+".rb"
+
+            var func = utils.getMainFileBinary(timestamp,main_file_name); 
+
+            const binaries = path.join(__dirname,"src/utils/binaries/");
+            fs.mkdirSync(binaries+ binaries_timestamp, { recursive: true });
+
+            //ROUTINE PER LEGGERE IL CONTENUTO DI TUTTI I FILE
+            const file_list = utils.copyAllFiles("/src/utils/zip_workdir/extracted/"+timestamp+"/","/src/utils/binaries/"+binaries_timestamp+"/",main_file_name)
+            zipgest.cleanDirs("/zip_workdir/extracted/"+timestamp);
+
+
+
+            zipgest.cleanDirs("/zip_workdir/extracted/"+timestamp);
+
+
+            // lang dependent code
+            // ext:_ .rb
+            // main file must be main.rb
+
+            //if è specificato un main diverso cerca il metodo con il nome specificato
+            let main_func = "main"
+
+            
+            var limit = new Limits(
+                element.limits.concurrency,
+                element.limits.logs,
+                element.limits.memory,
+                element.limits.timeout        
+                )
+
+            const action = new Action(
+                            element.name,
+                            func.replace(" "+main_func+"("," "+element.name +timestamp+"("),
+                            element.name + timestamp+"(",
+                            func.substring(func.indexOf(main_func+"(") +main_func.length+ 1, func.indexOf(")")),
+                            true,
+                            null,
+                            kind,
+                            false,
+                            limit,
+                            null,
+                            codeSize,
+                            file_list
+                        )
+
+            if(file_list.length > 0){
+                file_list.forEach(lf=>{
+                    action.code = action.code.replace(lf.split("-")[0]+lf.split("-")[1],lf)
+                })
+            }
+
+
+            if(action.code.includes("async ") || action.code.includes(" await ")){
+                action.asynch = true;
+            }
+
+            return action;
+
+        }
+
+        /**
+         * ACTION LANGUAGE IS JAVA 
+         */
+
+        if(kind.includes("java")){
+
+            //situazione particolare perchè ho un jar, devo capire cosa fare
+            // non devo installare  dipendenze perchè è un fat jar suppongo
+        }
+
+        /**
+         * ACTION LANGUAGE IS JAVA 
+         */
+
+         if(kind.includes("go")){
+            // non devo installare dipendeze -> C like
+            // però devo prendere correttametne l'import
+
+            // DEVO CERCARE IL FILE CON SCRITTO DENTRO "package main" -> quello è il main
+            //const main_file_name = getFileWithMain()
+            main_file_name = main_file_name === null ? "insert filename.go":main_file_name+".go"
+            var func = utils.getMainFileBinary(timestamp,main_file_name); 
+
+            
+
+            const binaries = path.join(__dirname,"src/utils/binaries/");
+            fs.mkdirSync(binaries+ binaries_timestamp, { recursive: true });
+
+            //ROUTINE PER LEGGERE IL CONTENUTO DI TUTTI I FILE
+            const file_list = utils.copyAllFiles("/src/utils/zip_workdir/extracted/"+timestamp+"/","/src/utils/binaries/"+binaries_timestamp+"/",main_file_name)
+            zipgest.cleanDirs("/zip_workdir/extracted/"+timestamp);
+
+            //if è specificato un main diverso cerca il metodo con il nome specificato
+
+            let main_func = "Main"
+
+            
+            var limit = new Limits(
+                                element.limits.concurrency,
+                                element.limits.logs,
+                                element.limits.memory,
+                                element.limits.timeout        
+                                )
+
+            // devo modificare coerentemente
+            const action = new Action(
+                                element.name,
+                                func.replace(" "+main_func+"("," "+element.name +timestamp+"("),
+                                element.name + timestamp+"(",
+                                func.substring(func.indexOf(main_func+"(") +main_func.length+ 1, func.indexOf(")")),
+                                true,
+                                null,
+                                kind,
+                                false,
+                                limit,
+                                null,
+                                codeSize,
+                                file_list
+                            )
+
+            if(file_list.length > 0){
+                file_list.forEach(lf=>{
+                    action.code = action.code.replace(lf.split("-")[0]+lf.split("-")[1],lf)
+                })
+            }
+            
+
+            if(action.code.includes("async ") || action.code.includes(" await ")){
+                action.asynch = true;
+            }
+            
+            return action;
+
+
+        }
+        
+
+    }else{
+        logger.log("Not binary function","info");
+        var func = element.exec.code
+        const codeSize = Buffer.byteLength(func, "utf-8");
+        var kind = utils.detectLangSimple(func);
+
+        if(kind.includes("nodejs")){
+
+            let main_func;
+            let main_func_invocation
+
+            if (func.indexOf("exports.main") === -1){
+                main_func = "main";
+                main_func_invocation = func.substring(func.indexOf(main_func))
+
+            }else{
+                const last_line = (func.substring(func.indexOf("exports.main"),func.length))
+                main_func = last_line.substring(last_line.indexOf("=")+1,last_line.indexOf(";")).trim()
+                main_func_invocation = func.substring(func.indexOf(main_func))
+            }
+
+            var limit = new Limits(
+                element.limits.concurrency,
+                element.limits.logs,
+                element.limits.memory,
+                element.limits.timeout        
+                )
+
+            var func = element.exec.code;
+            const action = new Action(
+                                element.name,
+                                func.replace(" "+main_func+"("," "+element.name +timestamp+"("),
+                                element.name +timestamp+ "(",
+                                main_func_invocation.substring(main_func_invocation.indexOf(main_func+"(")+main_func.length + 1,main_func_invocation.indexOf(")")),
+                                false,
+                                null,
+                                kind,
+                                false,
+                                limit,
+                                null,
+                                codeSize
+                            )
+
+
+            if(action.code.includes("async ") || action.code.includes(" Promise") || action.code.includes(".then(")){
+                action.asynch = true;
+            }
+
+            return action;
+        }
+
+        //devo controllare come funziona per il main se python
+        if(kind.includes("python")){
 
             const main_func = "main";
 
@@ -582,7 +1125,7 @@ async function getMetricsByActionNameAndPeriod(fname,period){
  * @returns JSON object containing the final limit of the merged action
  */
 
-function computeLimit(functionsArray){
+function computeLimit(functionsArray,mem_policy){
 
     logger.log("Computing limit for merged action","info")
 
@@ -601,14 +1144,17 @@ function computeLimit(functionsArray){
         final_limit.logs = final_limit.logs >= limit.logs ? 
         final_limit.logs:limit.logs;
 
-        final_limit.memory = final_limit.memory + limit.memory >= conf.LIMITS.limits.memory ? conf.LIMITS.limits.memory :final_limit.memory + limit.memory;
+        if(mem_policy === "max"){
+            final_limit.memory = limit.memory > final_limit.memory ? limit.memory:final_limit.memory;
+        }else{
+            final_limit.memory = final_limit.memory + limit.memory >= conf.LIMITS.limits.memory ? conf.LIMITS.limits.memory :final_limit.memory + limit.memory;
+        }
         //final_limit.memory = limit.memory > final_limit.memory ? limit.memory:final_limit.memory;
 
         final_limit.timeout = final_limit.timeout >= limit.timeout ? 
         final_limit.timeout:limit.timeout;   
     }
 
-    console.log(final_limit)
     return final_limit;
 }
 

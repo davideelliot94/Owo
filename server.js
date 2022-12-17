@@ -6,20 +6,19 @@ import * as child_process from "child_process"
 
 app.listen(conf.PORT, async ()=>{  
     
-    if(conf.SIMULATION_ENABLED){
-      const did_connect = await kafka.init()
-      if(!did_connect) process.exit(1)
-    }
+  if(conf.SIMULATION_ENABLED){
+    const did_connect = await kafka.init()
+    if(!did_connect) process.exit(1)
+  }
+  
+  logger.log(child_process.execSync("sh ./src/bin/loginDocker.sh "+Buffer.from(conf.DOCKER_HUB_USERNAME,"base64").toString('ascii')).toString(),"info")
 
-    
-    logger.log(child_process.execSync("sh ./src/bin/loginDocker.sh "+Buffer.from(conf.DOCKER_HUB_USERNAME,"base64").toString('ascii')).toString(),"info")
-
-    logger.log("-------------------------------------------","info");
-    logger.log("Environment: ","info");
-    logger.log("> API_HOST: "+conf.API_HOST,"info");
-    logger.log("> METRICS_ENDPOINT: "+conf.METRICS_ENDPOINT,"info");
-    if(conf.SIMULATION_ENABLED) logger.log("> KAFKA_HOST: "+conf.KAFKA_BOOTSTRAP_SERVER,"info");
-    logger.log("-------------------------------------------\n\n","info");
-    logger.log("Listening on port "+ conf.PORT,"info");
+  logger.log("-------------------------------------------","info");
+  logger.log("Environment: ","info");
+  logger.log("> API_HOST: "+conf.API_HOST,"info");
+  logger.log("> METRICS_ENDPOINT: "+conf.METRICS_ENDPOINT,"info");
+  if(conf.SIMULATION_ENABLED) logger.log("> KAFKA_HOST: "+conf.KAFKA_BOOTSTRAP_SERVER,"info");
+  logger.log("-------------------------------------------\n\n","info");
+  logger.log("Listening on port "+ conf.PORT,"info");
     
 });

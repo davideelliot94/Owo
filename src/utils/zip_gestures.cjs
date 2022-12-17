@@ -1,3 +1,4 @@
+const child_process = require("child_process")
 const fs = require('fs');
 const path = require("path");
 const logger = require("../log/logger.cjs");
@@ -39,20 +40,17 @@ function zipDirLocal(subfolder){
 }
 
 function getFileSize(subfolder){
-  const p = path.join(__dirname,subfolder);
-  console.log(p)
-  const stat = fs.statSync(p);
+  const stat = fs.statSync(subfolder);
   return stat.size
   
 }
 
 function zipDirLocalCB(subfolder,callback){
-  const zipPath = path.join(__dirname,subfolder);
-  var output = fs.createWriteStream(zipPath+".zip");
+  var output = fs.createWriteStream(subfolder+".zip");
   var archive = archiver('zip');
 
   output.on('close', function () {
-      const file =  fs.readFileSync(zipPath+".zip",'base64');
+      const file =  fs.readFileSync(subfolder+".zip",'base64');
       callback(file)
 
   });
@@ -64,11 +62,9 @@ function zipDirLocalCB(subfolder,callback){
   archive.pipe(output);
 
   // append files from a sub-directory, putting its contents at the root of archive
-  archive.directory(zipPath, false);
+  archive.directory(subfolder, false);
 
   archive.finalize();
-  
-
 }
 
 function cleanDirs(subdir){

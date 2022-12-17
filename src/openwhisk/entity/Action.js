@@ -10,7 +10,8 @@ class Action {
                 fasynch,
                 flimits,
                 fmetrics,
-                fcode_size
+                fcode_size,
+                ffile_list
                 ) {
         this.fname = fname
         this.fcode = fcode
@@ -24,6 +25,7 @@ class Action {
         this.fmetrics = fmetrics
         this.fto_merge = false
         this.fcode_size = fcode_size
+        this.ffile_list = ffile_list
     }
 
 
@@ -127,6 +129,10 @@ class Action {
     set to_merge(to_merge){
         this.fto_merge = to_merge
     }
-  }
+
+    get file_list(){
+        return this.ffile_list
+    }
+}
 
   export default Action;
