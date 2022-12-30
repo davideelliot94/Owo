@@ -2,22 +2,22 @@ var log4js = require("log4js");
 var logger = log4js.getLogger();
 
 
-function logInfo(mex){
+function logInfo(mex) {
     logger.level = "info";
     logger.info(mex);
 }
 
-function logWarn(mex){
+function logWarn(mex) {
     logger.level = "warn";
     logger.warn(mex);
 }
 
-function logDebug(mex){
+function logDebug(mex) {
     logger.level = "debug";
     logger.debug(mex);
 }
 
-function logError(mex){
+function logError(mex) {
     logger.level = "error";
     logger.error(mex);
 }
@@ -27,7 +27,7 @@ function logError(mex){
  * @param {string} mex message to log
  * @param {string} kind severity_level -> info,warn,error,debug
  */
-function log(mex,kind){
+function log(mex, kind) {
     switch (kind) {
 
         case "info":
@@ -52,4 +52,4 @@ function log(mex,kind){
     }
 }
 
-module.exports = {log};
+module.exports = { log };

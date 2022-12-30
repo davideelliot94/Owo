@@ -1,9 +1,9 @@
 class Sequence {
 
     constructor(sname,
-                sfuncs,
-                smetrics,
-                ) {
+        sfuncs,
+        smetrics,
+    ) {
         this.sname = sname
         this.sfuncs = sfuncs
         this.smetrics = smetrics
@@ -13,11 +13,11 @@ class Sequence {
     /**
      * GETTERS AND SETTERS
      */
-    
+
     get name() {
         return this.sname
     }
-    
+
     set name(name) {
         this.sname = name
     }
@@ -37,7 +37,7 @@ class Sequence {
     set metrics(metrics) {
         this.smetrics = metrics
     }
-  
+
 }
 
-  export default Sequence;
+export default Sequence;

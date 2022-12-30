@@ -32,15 +32,13 @@ app.post("/api/v1/sequence/merge", handler.mergeSequence);
 
 app.post("/api/v1/sequence/optimize", handler.optimizeSequence);
 
-app.post("/api/v1/sequence/optimize2", handler.optimizeSequenceTestMergeParziale);
-
 /** 
  * 
  * SIMULATION 
  * 
- * */
+ */
 
-app.post("api/v1/sequence/sim/opt",sim_handler.simulateOptimization)
+app.post("/api/v1/sequence/sim/opt", sim_handler.simulateOptimization)
 
 
 

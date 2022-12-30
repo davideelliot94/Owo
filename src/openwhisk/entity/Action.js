@@ -1,18 +1,18 @@
 class Action {
 
     constructor(fname,
-                fcode,
-                finvocation,
-                fparam,
-                fbinary,
-                fdependencies,
-                fkind,
-                fasynch,
-                flimits,
-                fmetrics,
-                fcode_size,
-                ffile_list
-                ) {
+        fcode,
+        finvocation,
+        fparam,
+        fbinary,
+        fdependencies,
+        fkind,
+        fasynch,
+        flimits,
+        fmetrics,
+        fcode_size,
+        ffile_list
+    ) {
         this.fname = fname
         this.fcode = fcode
         this.finvocation = finvocation
@@ -32,11 +32,11 @@ class Action {
     /**
      * GETTERS AND SETTERS
      */
-    
+
     get name() {
         return this.fname
     }
-    
+
     set name(name) {
         this.fname = name
     }
@@ -118,21 +118,21 @@ class Action {
         return this.fcode_size
     }
 
-    set code_size(code_size){
+    set code_size(code_size) {
         this.fcode_size = code_size
     }
 
-    get to_merge(){
+    get to_merge() {
         return this.fto_merge
     }
 
-    set to_merge(to_merge){
+    set to_merge(to_merge) {
         this.fto_merge = to_merge
     }
 
-    get file_list(){
+    get file_list() {
         return this.ffile_list
     }
 }
 
-  export default Action;
+export default Action;

@@ -2,7 +2,7 @@ import app from "./src/app.js";
 import * as conf from "./config/conf.cjs";
 import * as logger from "./src/log/logger.cjs";
 import * as kafka from "./src/kafka/Kafka.cjs";
-import * as child_process from "child_process"
+import * as child_process from "child_process";
 
 app.listen(conf.PORT, async ()=>{  
     
@@ -10,7 +10,7 @@ app.listen(conf.PORT, async ()=>{
     const did_connect = await kafka.init()
     if(!did_connect) process.exit(1)
   }
-  
+
   logger.log(child_process.execSync("sh ./src/bin/loginDocker.sh "+Buffer.from(conf.DOCKER_HUB_USERNAME,"base64").toString('ascii')).toString(),"info")
 
   logger.log("-------------------------------------------","info");

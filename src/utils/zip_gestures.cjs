@@ -6,30 +6,30 @@ var archiver = require('archiver');
 const extract = require('extract-zip')
 
 
- 
-async function extractZipLocal (timestamp) {
-  logger.log("Extracting zip action in directory /zipped/"+timestamp,"info");
+
+async function extractZipLocal(timestamp) {
+  logger.log("Extracting zip action in directory /zipped/" + timestamp, "info");
   try {
-    await extract(__dirname + "/zip_workdir/zipped/"+timestamp+"/func.zip", { dir: __dirname+"/zip_workdir/extracted/"+timestamp+"/" })
-    cleanDirs("/zip_workdir/zipped/"+timestamp);
-    logger.log("Zip action succesfully extracted","info");
+    await extract(__dirname + "/zip_workdir/zipped/" + timestamp + "/func.zip", { dir: __dirname + "/zip_workdir/extracted/" + timestamp + "/" })
+    cleanDirs("/zip_workdir/zipped/" + timestamp);
+    logger.log("Zip action succesfully extracted", "info");
   } catch (err) {
     return err;
   }
 }
 
 
-function zipDirLocal(subfolder){
-  const zipPath = path.join(__dirname,subfolder);
-  var output = fs.createWriteStream(zipPath+".zip");
+function zipDirLocal(subfolder) {
+  const zipPath = path.join(__dirname, subfolder);
+  var output = fs.createWriteStream(zipPath + ".zip");
   var archive = archiver('zip');
 
   output.on('close', function () {
-      return fs.readFileSync(zipPath+".zip",'base64');
+    return fs.readFileSync(zipPath + ".zip", 'base64');
   });
 
-  archive.on('error', function(err){
-      throw err;
+  archive.on('error', function (err) {
+    throw err;
   });
 
   archive.pipe(output);
@@ -39,24 +39,24 @@ function zipDirLocal(subfolder){
   archive.finalize();
 }
 
-function getFileSize(subfolder){
+function getFileSize(subfolder) {
   const stat = fs.statSync(subfolder);
   return stat.size
-  
+
 }
 
-function zipDirLocalCB(subfolder,callback){
-  var output = fs.createWriteStream(subfolder+".zip");
+function zipDirLocalCB(subfolder, callback) {
+  var output = fs.createWriteStream(subfolder + ".zip");
   var archive = archiver('zip');
 
   output.on('close', function () {
-      const file =  fs.readFileSync(subfolder+".zip",'base64');
-      callback(file)
+    const file = fs.readFileSync(subfolder + ".zip", 'base64');
+    callback(file)
 
   });
 
-  archive.on('error', function(err){
-      throw err;
+  archive.on('error', function (err) {
+    throw err;
   });
 
   archive.pipe(output);
@@ -67,28 +67,28 @@ function zipDirLocalCB(subfolder,callback){
   archive.finalize();
 }
 
-function cleanDirs(subdir){
-  const full_path = path.join(__dirname,"")+subdir;
+function cleanDirs(subdir) {
+  const full_path = path.join(__dirname, "") + subdir;
   fs.rm(full_path, { recursive: true }, (err) => {
 
     if (err) {
-        logger.log("Error while deleting directory " + subdir,"error");
-        throw err;
-    }else{
-      logger.log("Directory "+subdir+", has been deleted!","info");
+      logger.log("Error while deleting directory " + subdir, "error");
+      throw err;
+    } else {
+      logger.log("Directory " + subdir + ", has been deleted!", "info");
     }
-    
+
   });
   return;
 }
 
-module.exports = 
-                {
-                  extractZipLocal,
-                  cleanDirs,
-                  zipDirLocal,
-                  zipDirLocalCB,
-                  getFileSize
-                }
+module.exports =
+{
+  extractZipLocal,
+  cleanDirs,
+  zipDirLocal,
+  zipDirLocalCB,
+  getFileSize
+}
 
 

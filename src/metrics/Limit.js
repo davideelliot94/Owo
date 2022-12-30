@@ -1,61 +1,61 @@
 class Limit {
 
     constructor(
-                fconcurrency,
-                flogs,
-                fmemory,
-                ftimeout
-                ) {
-        
+        fconcurrency,
+        flogs,
+        fmemory,
+        ftimeout
+    ) {
+
         this.fconcurrency = fconcurrency
         this.flogs = flogs
         this.fmemory = fmemory
         this.ftimeout = ftimeout
-      
+
     }
 
-    get concurrency(){
+    get concurrency() {
         return this.fconcurrency
     }
 
     set concurrency(concurrency) {
         this.fconcurrency = concurrency
-      }
+    }
 
-    get logs(){
+    get logs() {
         return this.flogs
     }
 
-    set logs(logs){
+    set logs(logs) {
         this.flogs = logs
     }
 
-    get memory(){
+    get memory() {
         return this.fmemory
     }
 
-    set memory(memory){
+    set memory(memory) {
         this.fmemory = memory
     }
 
-    get timeout(){
+    get timeout() {
         return this.ftimeout
     }
 
-    set timeout(timeout){
+    set timeout(timeout) {
         this.ftimeout = timeout
     }
 
-    getJSON(){
+    getJSON() {
         return {
-            "concurrency":this.concurrency,
-            "logs":this.logs,
-            "memory":this.memory,
-            "timeout":this.timeout
+            "concurrency": this.concurrency,
+            "logs": this.logs,
+            "memory": this.memory,
+            "timeout": this.timeout
         }
     }
 
 
-  }
+}
 
 export default Limit;
